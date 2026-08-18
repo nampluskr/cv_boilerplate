@@ -1,0 +1,64 @@
+meta:
+  task_name: toy_det
+  description: "toy detection smoke fixture"
+
+runtime:
+  seed: 42
+  device: cpu
+  amp: false
+  deterministic: strict
+  allow_network: false
+
+data:
+  name: toy_det
+  root: "."
+  params: {}
+  image_size: [64, 64]
+  batch_size: 4
+  num_workers: 0
+  drop_last: false
+  split:
+    mode: file
+    path: configs/splits/toy_det.json
+  transform:
+    train: {name: toy_train, params: {}}
+    eval:  {name: toy_eval,  params: {}}
+
+model:
+  name: toy_det_head
+  params:
+    num_fg_classes: 2
+
+loss:
+  name: toy_det_loss
+  params:
+    num_fg_classes: 2
+    stride: 8
+
+metrics:
+  - {name: map, params: {}}
+
+adapter:
+  name: toy_det
+  params:
+    num_fg_classes: 2
+    stride: 8
+    image_size: [64, 64]
+
+optim:
+  optimizer: {name: adamw,  params: {lr: 0.001, weight_decay: 0.0001}}
+  scheduler: {name: cosine, params: {t_max: 5, eta_min: 0.00001}}
+
+train:
+  epochs: 5
+  grad_clip: null
+  monitor: {metric: map, mode: max}
+  log_interval: 10
+  save_last: true
+
+output:
+  root: outputs
+  run_name: null
+  save_predictions: true
+  save_visualizations: true
+  max_visualizations: 16

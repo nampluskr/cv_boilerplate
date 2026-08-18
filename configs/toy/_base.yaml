@@ -1,0 +1,59 @@
+meta:
+  task_name: toy_cls
+  description: "toy classification smoke fixture"
+
+runtime:
+  seed: 42
+  device: cpu
+  amp: false
+  deterministic: strict
+  allow_network: false
+
+data:
+  name: toy_cls
+  root: "."
+  params: {}
+  image_size: [32, 32]
+  batch_size: 8
+  num_workers: 0
+  drop_last: false
+  split:
+    mode: file
+    path: configs/splits/toy_cls.json
+  transform:
+    train: {name: toy_train, params: {}}
+    eval:  {name: toy_eval,  params: {}}
+
+model:
+  name: toy_cnn
+  params:
+    num_classes: 4
+
+loss:
+  name: cross_entropy
+  params: {}
+
+metrics:
+  - {name: accuracy, params: {num_classes: 4, average: micro}}
+
+adapter:
+  name: toy_cls
+  params: {}
+
+optim:
+  optimizer: {name: adamw,  params: {lr: 0.001, weight_decay: 0.0001}}
+  scheduler: {name: cosine, params: {t_max: 5, eta_min: 0.00001}}
+
+train:
+  epochs: 5
+  grad_clip: null
+  monitor: {metric: accuracy, mode: max}
+  log_interval: 10
+  save_last: true
+
+output:
+  root: outputs
+  run_name: null
+  save_predictions: true
+  save_visualizations: true
+  max_visualizations: 16

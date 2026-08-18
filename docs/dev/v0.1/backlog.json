@@ -1,0 +1,356 @@
+{
+  "project": "cv_boilerplate",
+  "version": "v0.1",
+  "createdAt": "2026-08-18",
+  "updatedAt": "2026-08-18",
+  "remoteRepository": "https://github.com/nampluskr/cv_boilerplate",
+  "documentChain": [
+    "docs/dev/v0.1/BRIEF.md",
+    "docs/dev/v0.1/PRD.md",
+    "docs/dev/v0.1/PLAN.md",
+    "docs/dev/v0.1/plans/PLAN-P{n}-*.md",
+    "docs/dev/v0.1/backlog.json"
+  ],
+  "executionModel": {
+    "layers": [
+      { "layer": "master", "actor": "메인 세션", "responsibility": "P1·P6 직접 구현, 태스크 Phase 위임·통합·검토·보고·커밋, 공통 코드 수정 권한" },
+      { "layer": "task", "actor": "Phase당 1개 에이전트", "responsibility": "태스크 기반 구현, 모델 에이전트 위임, 통합·스모크·leaderboard" },
+      { "layer": "model", "actor": "태스크당 3개 에이전트", "responsibility": "모델 1종의 models/<name>.py와 config 1개" }
+    ],
+    "taskPhaseOrder": "sequential",
+    "modelAgentsWithinPhase": "parallel",
+    "modelAgentFileScope": "자기 모델 파일 1개와 해당 config 1개 외 수정 금지"
+  },
+  "commonVerification": {
+    "epochs": 5,
+    "dataPolicy": "P1은 합성 toy 4종, P2~P5는 실데이터 축소 subset, P6는 축소 subset 재실행",
+    "smokeSpecRef": "PLAN-P1 §13",
+    "enginePurityCheck": "scripts/check_engine_purity.py",
+    "reproducibilityToleranceRef": "PLAN-P1 §5.2"
+  },
+  "verificationAttemptLimit": {
+    "maxRunsPerTarget": 3,
+    "includesRetriesAndRework": true,
+    "onExhaustion": "마지막 유효 검토 결과·반영 내용·미해결 지적·남은 위험을 기록하고 사용자에게 보고. 미해결 Critical이 있으면 다음 Phase로 진행하지 않는다",
+    "timeoutSeconds": 600
+  },
+  "reviewerAssignment": {
+    "rule": "마지막 실질 구현자의 반대 벤더 CLI",
+    "claudeImplemented": "codex exec --model gpt-5.6-sol --sandbox read-only",
+    "codexImplemented": "claude -p --model sonnet --safe-mode --allowedTools \"Read,Glob,Grep\""
+  },
+  "phaseReviewProfiles": [
+    { "phase": "P1", "mandatory": true,  "reviewer": "codex", "reason": "P1 계약 결함은 등급 C 변경을 유발해 완료된 태스크를 전부 재실행하게 만든다" },
+    { "phase": "P2", "mandatory": false, "reviewer": "codex", "reason": "가장 가벼운 태스크. 템플릿 실효성 검증 단계" },
+    { "phase": "P3", "mandatory": false, "reviewer": "codex", "reason": "P2와 구조가 유사하며 편차가 작다" },
+    { "phase": "P4", "mandatory": true,  "reviewer": "codex", "reason": "Detection 일반성·외부 형식 격리·후처리 통제의 위험이 가장 크다" },
+    { "phase": "P5", "mandatory": true,  "reviewer": "codex", "reason": "threshold 누수와 고정 teacher 무결성 위험이 크다" },
+    { "phase": "P6", "mandatory": true,  "reviewer": "codex", "reason": "수용 기준 최종 판정" }
+  ],
+  "commonContractChangePolicy": {
+    "modificationRight": "공통 코드(core·bench·cli) 수정은 master만 수행. 하위 에이전트는 변경 요청만 반환",
+    "changeRequestFields": ["문제", "정확한 재현 조건", "최소 수정안", "영향받는 PLAN-P1 조항 번호"],
+    "grades": [
+      { "grade": "A", "meaning": "계약 무변경. 공통 코드 버그 수정", "handling": "master가 수정 후 회귀 검증" },
+      { "grade": "B", "meaning": "계약 확장. 훅·옵션 추가이며 기본값 유지로 하위호환", "handling": "master 수정 + PLAN-P1 조항 추가" },
+      { "grade": "C", "meaning": "계약 변경. 기존 인터페이스나 타깃 규약 변경", "handling": "사용자 승인 후 진행. 완료된 태스크 전부 재실행" }
+    ],
+    "hardConstraint": "공통 루프에 태스크 이름으로 분기하는 수정은 등급과 무관하게 금지",
+    "regressionSuite": "완료된 태스크의 toy 4종과 스모크 실행. 공통 코드 변경 시 전부 재실행",
+    "revisionLog": "PLAN-P1 §16"
+  },
+  "phases": [
+    {
+      "id": "P1",
+      "name": "공통 기반 (Foundation)",
+      "owner": "master",
+      "status": "done",
+      "dependsOn": [],
+      "mandatoryReview": true,
+      "planDoc": "docs/dev/v0.1/plans/PLAN-P1-foundation.md",
+      "requirements": ["FR-01","FR-02","FR-03","FR-04","FR-05","FR-06","FR-07","FR-08","FR-09","FR-10","FR-23","FR-24","FR-25","FR-26","FR-27","FR-28","FR-29","FR-33","FR-34","FR-35","NFR-01","NFR-02","NFR-03","NFR-04","NFR-07","NFR-10"],
+      "scope": [
+        "패키지 스켈레톤, requirements.txt, .gitignore, git init 및 remote 연결",
+        "오프라인 가드와 로컬 가중치 로더, configs/assets.yaml, check-assets",
+        "Config 로더·상속·검증·--set override, Registry, run 디렉토리 및 산출물 경로 규칙",
+        "seed/determinism, device, AMP, Logger, Checkpoint, 환경 기록",
+        "TaskAdapter 계약과 toy 4종 fixture",
+        "Trainer 루프, optimizer/scheduler/dataloader 빌더, 비표준 학습 훅",
+        "CLI 전체 서브커맨드",
+        "params/FLOPs/FPS 프로파일",
+        "벤치마크 러너, 통제 조건 기계 검사, leaderboard 생성"
+      ],
+      "subPhases": [
+        { "id": "P1.1", "name": "스켈레톤·환경", "dependsOn": [], "acceptance": "check-assets가 PLAN-P1 §9.3 전 항목 통과. faster-coco-eval 설치 확인" },
+        { "id": "P1.2", "name": "Config·Registry", "dependsOn": ["P1.1"], "acceptance": "상속·override·검증·경로 생성 통과. 존재하지 않는 --set 키가 오류로 실패" },
+        { "id": "P1.3", "name": "실행 컨텍스트", "dependsOn": ["P1.2"], "acceptance": "동일 seed 2회 실행이 동일 난수열. 체크포인트 저장·재개가 RNG 상태까지 복원" },
+        { "id": "P1.4", "name": "계약 정의와 toy fixture", "dependsOn": ["P1.2"], "acceptance": "엔진 없이 toy 4종이 Dataset → collate → adapter → metric 통과. toy_det 배치에 N=0/1/>1 혼재" },
+        { "id": "P1.5", "name": "Trainer 엔진", "dependsOn": ["P1.3","P1.4"], "acceptance": "toy 4종 학습·평가 5 epoch 완주. check_engine_purity.py 통과" },
+        { "id": "P1.6", "name": "CLI", "dependsOn": ["P1.5"], "acceptance": "toy로 config/train/evaluate/predict 완주. train 경로에서 test split 접근이 오류로 차단" },
+        { "id": "P1.7", "name": "프로파일", "dependsOn": ["P1.5"], "acceptance": "toy 모델에서 params/FLOPs/FPS 산출" },
+        { "id": "P1.8", "name": "벤치마크", "dependsOn": ["P1.6","P1.7"], "acceptance": "toy 3모델 leaderboard 생성. 통제 위반 config가 학습 시작 전 실패. leaderboard 재검사도 실패" },
+        { "id": "P1.9", "name": "마감", "dependsOn": ["P1.8"], "acceptance": "toy 4종 2회 실행이 PLAN-P1 §5.2 허용 오차 내 일치. 적대적 검증 미해결 Critical 없음" }
+      ],
+      "acceptanceCriteria": [
+        "합성 toy 태스크 4종이 학습·평가·추론·leaderboard까지 완주한다",
+        "toy-det 배치에 N=0, N=1, N>1이 혼재해도 Loss·Metric·Postprocess까지 완주한다",
+        "toy-anomaly가 타깃 없는 학습과 모델별 train_step 분기를 어댑터·훅만으로 처리한다",
+        "check_engine_purity.py가 core와 bench에서 태스크·모델 이름 문자열을 발견하지 못한다",
+        "통제 필드 위반 config가 어떤 split도 실행하지 않고 종료한다",
+        "동일 seed 2회 실행이 PLAN-P1 §5.2의 허용 오차 내로 일치한다",
+        "PRD.md 8장의 공통 계약 미결정 항목 7개가 PLAN-P1에서 수치·형식으로 확정된다"
+      ],
+      "planRefs": ["PLAN-P1 §2","PLAN-P1 §3","PLAN-P1 §4","PLAN-P1 §5","PLAN-P1 §6","PLAN-P1 §7","PLAN-P1 §8","PLAN-P1 §9","PLAN-P1 §10","PLAN-P1 §11","PLAN-P1 §12","PLAN-P1 §13"],
+      "adversarialFocus": [
+        { "axis": "계약 일반성", "attack": "TaskAdapter로 N=0 포함 가변 N 배치를 표현할 수 있는가. 타깃 없는 학습과 모델별 train_step 분기를 어댑터·훅만으로 처리할 수 있는가", "planRefs": ["PLAN-P1 §6.1","PLAN-P1 §6.3","PLAN-P1 §6.5","PLAN-P1 §12"] },
+        { "axis": "엔진 순수성", "attack": "공통 루프에 태스크 이름이나 타깃 형태로 분기하는 조건문이 있는가. toy 통과를 위해 엔진에 특례를 넣지 않았는가", "planRefs": ["PLAN-P1 §6.1","PLAN-P1 §7.1","PLAN-P1 §7.4","PLAN-P1 §2.2"] },
+        { "axis": "평가 무결성", "attack": "model.eval()·no_grad() 적용 범위, metric 리셋 누락, valid/test 경로 혼용", "planRefs": ["PLAN-P1 §6.4","PLAN-P1 §7.2","PLAN-P1 §7.3","PLAN-P1 §8.3"] },
+        { "axis": "재현성", "attack": "seed 적용 범위가 완전한가. config 저장이 실제 재현을 보장하는가. 허용 오차에 근거가 있는가", "planRefs": ["PLAN-P1 §5.1","PLAN-P1 §5.2","PLAN-P1 §5.5","PLAN-P1 §8.4"] },
+        { "axis": "통제 검사", "attack": "FR-35의 통제 필드 비교를 우회할 수 있는가. override로 통제 필드를 바꿔도 검사를 통과하는가", "planRefs": ["PLAN-P1 §3.3","PLAN-P1 §10.2","PLAN-P1 §10.3"] },
+        { "axis": "오프라인", "attack": "네트워크 접근을 유발하는 경로가 남아 있는가", "planRefs": ["PLAN-P1 §9.1","PLAN-P1 §9.2","PLAN-P1 §8.1"] }
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Classification",
+      "owner": "task-agent + 3 model-agents",
+      "status": "not_started",
+      "dependsOn": ["P1"],
+      "mandatoryReview": false,
+      "planDoc": "docs/dev/v0.1/plans/PLAN-P2-classification.md",
+      "requirements": ["FR-11","FR-12","FR-17","FR-18","FR-19","FR-20","FR-21","FR-22","FR-30","FR-31","FR-32","NFR-05","AC-05","CON-10"],
+      "dataset": { "name": "oxford_pets", "labels": "37 breeds", "split": "configs/splits/oxford_pets.json", "subset": "configs/splits/oxford_pets_subset_cls.json" },
+      "models": [
+        { "agent": 1, "key": "custom_cnn_cls", "file": "src/tasks/classification/models/custom_cnn.py", "config": "configs/classification/custom_cnn.yaml", "weights": null },
+        { "agent": 2, "key": "resnet50_cls", "file": "src/tasks/classification/models/resnet50.py", "config": "configs/classification/resnet50.yaml", "weights": "/mnt/d/backbones/resnet50-0676ba61.pth" },
+        { "agent": 3, "key": "efficientnet_b0_cls", "file": "src/tasks/classification/models/efficientnet_b0.py", "config": "configs/classification/efficientnet_b0.yaml", "weights": "/mnt/d/backbones/efficientnet_b0_rwightman-7f5810bc.pth" }
+      ],
+      "subPhases": [
+        { "id": "P2.1", "owner": "task", "name": "태스크 기반", "acceptance": "더미 배치가 Dataset → collate → adapter → metric 통과. assert_disjoint 통과. subset 샘플 수가 370/74/74" },
+        { "id": "P2.2", "owner": "model x3", "name": "모델 3종", "acceptance": "(2,3,224,224) 입력에서 (2,37) logits. pretrained 2종 로컬 가중치 로드 성공, 누락 시 LocalAssetError" },
+        { "id": "P2.3", "owner": "task", "name": "통합 스모크", "acceptance": "subset 5 epoch 학습·평가·추론 3모델 완주" },
+        { "id": "P2.4", "owner": "task", "name": "벤치마크", "acceptance": "통제 검사 통과, leaderboard 생성, params/FLOPs/FPS 채워짐" },
+        { "id": "P2.5", "owner": "master", "name": "검증·보고", "acceptance": "미해결 Critical 없음, reviews/A2.md 기록" }
+      ],
+      "acceptanceCriteria": [
+        "Dataset이 0-based 라벨(0..36)을 반환한다",
+        "train/valid/test 샘플 ID 집합이 상호 배타적이다",
+        "3모델이 동일 해상도·정규화·augmentation·optimizer·epoch·seed로 학습된다",
+        "leaderboard에 Top-1/F1과 params/FLOPs/FPS가 함께 기록된다",
+        "모델 추가가 registry 등록과 config 1개만으로 이루어졌다 (NFR-05)"
+      ],
+      "planRefs": ["PLAN-P2 §3","PLAN-P2 §4","PLAN-P2 §5","PLAN-P2 §6","PLAN-P2 §8","PLAN-P2 §9"],
+      "adversarialFocus": [
+        { "axis": "target 규약", "attack": "list.txt의 1-based CLASS-ID를 그대로 흘리지 않는가", "planRefs": ["PLAN-P2 §3.1","PLAN-P2 §3.4"] },
+        { "axis": "split 무결성", "attack": "상호 배타성, subset 추출의 결정성, valid 기준 모델 선택", "planRefs": ["PLAN-P2 §3.2","PLAN-P2 §3.3","PLAN-P2 §5.2"] },
+        { "axis": "공정 비교 통제", "attack": "모델별 lr 튜닝이나 정규화 통계 차이가 있는가", "planRefs": ["PLAN-P2 §3.5","PLAN-P2 §8.2","PLAN-P2 §8.3"] },
+        { "axis": "오프라인", "attack": "weights=None + 로컬 로드를 지키는가. 가중치 누락 시 무작위 초기화 폴백이 있는가", "planRefs": ["PLAN-P2 §4.2"] },
+        { "axis": "평가 무결성", "attack": "metric 리셋, eval()/no_grad(), test 노출", "planRefs": ["PLAN-P2 §6","PLAN-P1 §7.2"] },
+        { "axis": "엔진 순수성", "attack": "태스크 구현이 core·bench를 수정했는가", "planRefs": ["PLAN-P2 §9","PLAN-P1 §7.4"] }
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Segmentation",
+      "owner": "task-agent + 3 model-agents",
+      "status": "not_started",
+      "dependsOn": ["P1"],
+      "mandatoryReview": false,
+      "planDoc": "docs/dev/v0.1/plans/PLAN-P3-segmentation.md",
+      "requirements": ["FR-11","FR-13","FR-18","FR-19","FR-20","FR-21","FR-22","AC-05","CON-10"],
+      "dataset": { "name": "oxford_pets", "labels": "trimap 3-class", "split": "configs/splits/oxford_pets.json", "subset": "configs/splits/oxford_pets_subset_seg.json" },
+      "models": [
+        { "agent": 1, "key": "custom_unet_seg", "file": "src/tasks/segmentation/models/custom_unet.py", "config": "configs/segmentation/custom_unet.yaml", "weights": null },
+        { "agent": 2, "key": "deeplabv3_resnet50_seg", "file": "src/tasks/segmentation/models/deeplabv3_resnet50.py", "config": "configs/segmentation/deeplabv3_resnet50.yaml", "weights": "/mnt/d/backbones/deeplabv3_resnet50_coco-cd0a2569.pth" },
+        { "agent": 3, "key": "fcn_resnet50_seg", "file": "src/tasks/segmentation/models/fcn_resnet50.py", "config": "configs/segmentation/fcn_resnet50.yaml", "weights": "/mnt/d/backbones/fcn_resnet50_coco-1167a1af.pth" }
+      ],
+      "subPhases": [
+        { "id": "P3.1", "owner": "task", "name": "태스크 기반", "acceptance": "변환 후 마스크 값이 {0,1,2} 부분집합이고 dtype이 int64. assert_disjoint 통과" },
+        { "id": "P3.2", "owner": "model x3", "name": "모델 3종", "acceptance": "(2,3,256,256) 입력에서 (2,3,256,256) logits. strict=True 로드 후 head 교체, aux_classifier is None" },
+        { "id": "P3.3", "owner": "task", "name": "통합 스모크", "acceptance": "subset 5 epoch 3모델 완주. 예측 마스크 PNG와 비교 이미지 생성" },
+        { "id": "P3.4", "owner": "task", "name": "벤치마크", "acceptance": "통제 검사 통과, leaderboard 생성, ASPP 유무 비교 축 확인" },
+        { "id": "P3.5", "owner": "master", "name": "검증·보고", "acceptance": "미해결 Critical 없음, reviews/A3.md 기록" }
+      ],
+      "acceptanceCriteria": [
+        "trimap {1,2,3}이 {0,1,2}로 정확히 매핑된다",
+        "마스크에 bilinear 보간·scale=True·Normalize가 적용되지 않는다",
+        "모델이 입력 해상도와 동일한 크기의 logits 텐서를 반환한다",
+        "세 모델 모두 aux head 없이 단일 loss로 학습된다",
+        "torchvision 2종의 backbone이 ResNet50으로 통일된다"
+      ],
+      "planRefs": ["PLAN-P3 §3","PLAN-P3 §4","PLAN-P3 §5","PLAN-P3 §6","PLAN-P3 §8","PLAN-P3 §9"],
+      "adversarialFocus": [
+        { "axis": "라벨 무결성", "attack": "trimap 매핑 정확성. 마스크에 보간·정규화·scale이 적용되는가", "planRefs": ["PLAN-P3 §3.1","PLAN-P3 §3.5"] },
+        { "axis": "target 규약", "attack": "(H,W) long을 반환하는가. one-hot이나 float를 흘리는가", "planRefs": ["PLAN-P3 §3.4","PLAN-P1 §6.1"] },
+        { "axis": "모델 출력 정규화", "attack": "torchvision OrderedDict가 어댑터·엔진으로 새어나가는가. 출력 해상도가 입력과 같은가", "planRefs": ["PLAN-P3 §4.1"] },
+        { "axis": "공정 비교 통제", "attack": "aux head가 한 모델에만 남아 loss 구성이 다른가", "planRefs": ["PLAN-P3 §4.2","PLAN-P3 §8.2"] },
+        { "axis": "metric 정확성", "attack": "multidim_average가 global인가. argmax 결과를 넘기는가", "planRefs": ["PLAN-P3 §5.2"] },
+        { "axis": "평가 무결성", "attack": "eval transform이 GT를 잘라내는가. metric 리셋이 이루어지는가", "planRefs": ["PLAN-P3 §3.5","PLAN-P3 §6"] }
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Object Detection",
+      "owner": "task-agent + 3 model-agents",
+      "status": "not_started",
+      "dependsOn": ["P1"],
+      "mandatoryReview": true,
+      "riskLevel": "high",
+      "planDoc": "docs/dev/v0.1/plans/PLAN-P4-detection.md",
+      "requirements": ["FR-14","FR-15","FR-18","FR-19","FR-20","NFR-06","AC-09","CON-11"],
+      "dataset": { "name": "oxford_pets", "labels": "cat/dog (background=0)", "split": "configs/splits/oxford_pets_det.json", "subset": "configs/splits/oxford_pets_subset_det.json", "note": "test.txt에 XML 주석이 0건이므로 정본 split을 사용할 수 없다 (PLAN-P4 §3.2)" },
+      "models": [
+        { "agent": 1, "key": "custom_fcos_det", "file": "src/tasks/detection/models/custom_fcos.py", "config": "configs/detection/custom_fcos.yaml", "weights": null, "load": "high", "fallbackPlan": "PLAN-P4 §4.3.1" },
+        { "agent": 2, "key": "fasterrcnn_r50_fpn_det", "file": "src/tasks/detection/models/fasterrcnn_r50_fpn.py", "config": "configs/detection/fasterrcnn_r50_fpn.yaml", "weights": "/mnt/d/backbones/fasterrcnn_resnet50_fpn_coco-258fb6c6.pth", "load": "low" },
+        { "agent": 3, "key": "yolov8n_det", "file": "src/tasks/detection/models/yolov8n.py", "config": "configs/detection/yolov8n.yaml", "weights": "/mnt/d/backbones/yolov8n.pt", "load": "medium" }
+      ],
+      "subPhases": [
+        { "id": "P4.1", "owner": "task", "name": "태스크 기반", "acceptance": "AC-09 fixture 통과. N=0/1/>1과 cat·dog 혼합 배치가 collate → adapter → metric 완주. faster-coco-eval 설치 확인" },
+        { "id": "P4.2", "owner": "model x3", "name": "모델 3종", "acceptance": "N=0 포함 더미 배치에서 train_step과 forward 통과. 반환 형식이 PLAN-P4 §4.1과 일치" },
+        { "id": "P4.3", "owner": "task", "name": "통합 스모크", "acceptance": "subset 5 epoch 3모델 완주. 검출 0건 이미지 포함 시각화 생성" },
+        { "id": "P4.4", "owner": "task", "name": "벤치마크", "acceptance": "확장 통제 필드 3개 포함 통제 검사 통과, leaderboard 생성" },
+        { "id": "P4.5", "owner": "master", "name": "적대적 검증·보고", "acceptance": "미해결 Critical 없음, reviews/A4.md 기록" }
+      ],
+      "acceptanceCriteria": [
+        "N=0, N=1, N>1과 복수 클래스가 한 배치에 섞여도 Loss·Metric·Postprocess까지 완주한다 (AC-09)",
+        "박스가 절대 xyxy이고 라벨이 1-based이며 0이 배경으로 예약된다",
+        "ultralytics 형식 변환이 모델 래퍼 밖으로 새어나가지 않는다",
+        "세 모델의 score_thresh/nms_iou/max_det가 동일하고 이중 NMS가 없다",
+        "Detection 자체 분할의 train/valid/test가 상호 배타적이고 사유가 기록된다",
+        "클래스 수가 config로만 결정되고 코드에 하드코딩되지 않는다"
+      ],
+      "planRefs": ["PLAN-P4 §2.1","PLAN-P4 §3","PLAN-P4 §4","PLAN-P4 §5","PLAN-P4 §6","PLAN-P4 §7","PLAN-P4 §8","PLAN-P4 §9"],
+      "contractExtension": {
+        "grade": "B",
+        "description": "통제 필드에 model.params.score_thresh / nms_iou / max_det 3개를 P4 한정으로 추가",
+        "ref": "PLAN-P4 §8.3",
+        "recordIn": "PLAN-P1 §16"
+      },
+      "adversarialFocus": [
+        { "axis": "Detection 일반성", "attack": "N=0에서 파이프라인이 깨지는가. 클래스 수가 하드코딩되었는가. oxford_pets가 N=1이라는 전제가 코드에 스며들었는가", "planRefs": ["PLAN-P4 §2.1","PLAN-P4 §3.4","PLAN-P4 §3.5","PLAN-P4 §3.6","PLAN-P4 §4.1"] },
+        { "axis": "target 규약", "attack": "박스가 절대 xyxy인가. 정규화 좌표나 cxcywh가 새어나오는가", "planRefs": ["PLAN-P4 §3.4","PLAN-P4 §4.1"] },
+        { "axis": "외부 형식 격리", "attack": "ultralytics 형식 변환이 모델 래퍼 밖으로 나갔는가", "planRefs": ["PLAN-P4 §4.1","PLAN-P4 §4.3.3","PLAN-P4 §7"] },
+        { "axis": "공정 비교 통제", "attack": "후처리 파라미터가 동일한가. 이중 NMS가 걸리는가", "planRefs": ["PLAN-P4 §4.2","PLAN-P4 §7","PLAN-P4 §8.3"] },
+        { "axis": "split 무결성", "attack": "자체 분할이 상호 배타적인가. 정본 분할 미사용 사유가 기록되었는가", "planRefs": ["PLAN-P4 §3.2","PLAN-P4 §3.3"] },
+        { "axis": "오프라인", "attack": "ultralytics 임포트·로드 경로에 네트워크 접근이 남아 있는가. 가드를 끄는 방식으로 우회했는가", "planRefs": ["PLAN-P4 §4.3.3","PLAN-P1 §9.1"] },
+        { "axis": "평가 무결성", "attack": "metric 리셋이 이루어지는가. valid loss가 None인 것이 모델 선택을 망가뜨리는가", "planRefs": ["PLAN-P4 §6","PLAN-P4 §7"] }
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Anomaly Detection",
+      "owner": "task-agent + 3 model-agents",
+      "status": "not_started",
+      "dependsOn": ["P1"],
+      "mandatoryReview": true,
+      "planDoc": "docs/dev/v0.1/plans/PLAN-P5-anomaly.md",
+      "requirements": ["FR-10","FR-16","FR-18","FR-19","NFR-03","CON-02","CON-05","AC-06"],
+      "dataset": { "name": "mvtec", "category": "bottle", "split": "configs/splits/mvtec_bottle.json", "counts": { "train": 209, "valid": 33, "test": 50 } },
+      "models": [
+        { "agent": 1, "key": "custom_ae_anomaly", "file": "src/tasks/anomaly/models/custom_ae.py", "config": "configs/anomaly/custom_ae.yaml", "weights": null, "training": "reconstruction" },
+        { "agent": 2, "key": "stfpm_anomaly", "file": "src/tasks/anomaly/models/stfpm.py", "config": "configs/anomaly/stfpm.yaml", "weights": "/mnt/d/backbones/resnet18-f37072fd.pth", "training": "teacher-student" },
+        { "agent": 3, "key": "efficientad_anomaly", "file": "src/tasks/anomaly/models/efficientad.py", "config": "configs/anomaly/efficientad.yaml", "weights": "/mnt/d/backbones/efficientad_pretrained_weights/pretrained_teacher_small.pth", "training": "teacher + student + autoencoder" }
+      ],
+      "hookSpec": {
+        "ref": "PLAN-P5 §5",
+        "custom_ae_anomaly": { "on_fit_start": false, "on_fit_end": "threshold 결정" },
+        "stfpm_anomaly": { "on_fit_start": false, "on_fit_end": "threshold 결정" },
+        "efficientad_anomaly": { "on_fit_start": "train 로더 1회 순회로 teacher 출력 채널 정규화 통계 산출", "on_fit_end": "quantile 정규화 상수 산출 + threshold 결정" },
+        "constraint": "on_fit_start/on_fit_end에 전달되는 loaders에는 train과 valid만 있다. test는 없다"
+      },
+      "subPhases": [
+        { "id": "P5.1", "owner": "task", "name": "태스크 기반 + 훅 명세", "acceptance": "train 타깃이 빈 dict. mask 값이 {0,1}이고 정상 이미지에 영행렬 mask 생성. assert_disjoint 통과" },
+        { "id": "P5.2", "owner": "model x3", "name": "모델 3종", "acceptance": "pred_score (B,)와 anomaly_map (B,256,256) 반환. 학습 전후 teacher state_dict 해시 동일. 로컬 가중치 로드 성공" },
+        { "id": "P5.3", "owner": "task", "name": "통합 스모크", "acceptance": "5 epoch 3모델 완주. image-AUROC와 pixel-AUROC 모두 산출 (AC-06)" },
+        { "id": "P5.4", "owner": "task", "name": "벤치마크", "acceptance": "통제 검사 통과, leaderboard 생성, 속도 대 정확도 축이 FPS와 함께 확인" },
+        { "id": "P5.5", "owner": "master", "name": "적대적 검증·보고", "acceptance": "미해결 Critical 없음, reviews/A5.md 기록" }
+      ],
+      "acceptanceCriteria": [
+        "정상 이미지만으로 학습하고 image-AUROC와 pixel-AUROC를 모두 산출한다",
+        "threshold와 quantile 정규화가 valid split만 사용한다",
+        "고정 teacher가 model.train()으로 갱신되지 않고 optimizer에도 포함되지 않는다",
+        "anomalib를 설치하지 않고 모델 정의만 복사하며 출처·라이선스를 주석으로 남긴다",
+        "teacher 가중치 누락 시 무작위 초기화로 폴백하지 않고 LocalAssetError로 실패한다",
+        "anomaly_map이 입력 해상도이고 정상 이미지가 pixel-AUROC에 포함된다"
+      ],
+      "planRefs": ["PLAN-P5 §2.1","PLAN-P5 §3","PLAN-P5 §4","PLAN-P5 §5","PLAN-P5 §6","PLAN-P5 §7","PLAN-P5 §8","PLAN-P5 §9"],
+      "adversarialFocus": [
+        { "axis": "학습/평가 누수", "attack": "threshold나 quantile 정규화가 test를 보는가. on_fit_end에 test loader가 전달되는가", "planRefs": ["PLAN-P5 §3.2","PLAN-P5 §5","PLAN-P5 §6"] },
+        { "axis": "고정 모듈 무결성", "attack": "teacher가 model.train()으로 BN이 갱신되는가. teacher 파라미터가 optimizer에 들어가는가", "planRefs": ["PLAN-P5 §4.2"] },
+        { "axis": "오프라인", "attack": "teacher 가중치가 없을 때 무작위 초기화로 폴백하는가. anomalib를 런타임 임포트하는가", "planRefs": ["PLAN-P5 §2.1","PLAN-P5 §4.3"] },
+        { "axis": "target 규약", "attack": "train 타깃이 빈 dict인가. mask가 {0,1}인가. 정상 이미지 mask가 생성되는가", "planRefs": ["PLAN-P5 §3.1","PLAN-P5 §3.4"] },
+        { "axis": "pixel metric 정확성", "attack": "anomaly_map이 입력 해상도인가. 정상 이미지가 pixel-AUROC에서 제외되는가", "planRefs": ["PLAN-P5 §4.1","PLAN-P5 §7.1"] },
+        { "axis": "공정 비교 통제", "attack": "smoothing이 모델별로 다른가. augmentation이 한 모델에만 적용되는가", "planRefs": ["PLAN-P5 §3.5","PLAN-P5 §7.3","PLAN-P5 §8.1"] }
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "통합 검증·마무리",
+      "owner": "master",
+      "status": "not_started",
+      "dependsOn": ["P2","P3","P4","P5"],
+      "mandatoryReview": true,
+      "planDoc": "docs/dev/v0.1/plans/PLAN-P6-integration.md",
+      "requirements": ["AC-01","AC-02","AC-03","AC-04","AC-05","AC-06","AC-07","AC-08","AC-09","AC-10","FR-09","NFR-01","NFR-07","NFR-09"],
+      "entryCondition": "P1~P5 status 완료, P1·P4·P5 적대적 검증에 미해결 Critical 없음, 마지막 공통 코드 변경 이후 전체 스모크 재실행 완료",
+      "subPhases": [
+        { "id": "P6.1", "owner": "master", "name": "4태스크 전체 흐름 재실행", "acceptance": "12개 split이 status=ok로 완주. 4개 leaderboard 생성. check_engine_purity.py 통과" },
+        { "id": "P6.2", "owner": "master", "name": "재현성 검증", "acceptance": "태스크별 1 split 2회 실행이 허용 오차 내 일치. toy 4종 strict+cpu 2회가 비트 단위 일치" },
+        { "id": "P6.3", "owner": "master", "name": "오프라인 완주 검증", "acceptance": "가드 역검증에서 OfflineViolationError 발생. 가중치 제거 시 LocalAssetError 발생" },
+        { "id": "P6.4", "owner": "master", "name": "split 누수 검사", "acceptance": "check_split_integrity.py 통과. allow_test_split가 evaluate 외에서 True가 되지 않음" },
+        { "id": "P6.5", "owner": "master", "name": "대조표·문서화", "acceptance": "AC-01~AC-10 대조표의 모든 행에 근거 산출물 경로 기입. LIMITS.md와 README.md 작성" },
+        { "id": "P6.6", "owner": "master", "name": "최종 적대적 검증·보고", "acceptance": "미해결 Critical 없음, reviews/A6.md 기록, 커밋·푸시 승인 요청" }
+      ],
+      "acceptanceCriteria": [
+        "AC-01부터 AC-10까지 모든 수용 기준이 재실행 산출물로 판정된다",
+        "앞 Phase의 통과 기록을 근거로 재사용한 항목이 없다",
+        "오프라인 가드가 실제로 차단함을 역검증으로 확인한다",
+        "재현성 허용 오차를 실측에 맞춰 사후 완화하지 않는다",
+        "LIMITS.md가 공통 엔진의 한계선과 등급 B·C 계약 변경을 빠짐없이 기록한다"
+      ],
+      "planRefs": ["PLAN-P6 §3","PLAN-P6 §4.1","PLAN-P6 §4.2","PLAN-P6 §4.3","PLAN-P6 §4.4","PLAN-P6 §4.5","PLAN-P6 §4.6"],
+      "adversarialFocus": [
+        { "axis": "엔진 순수성 (최종)", "attack": "P2~P5를 거치며 core·bench에 태스크 분기가 침투했는가. 순수성 검사가 우회 가능한가", "planRefs": ["PLAN-P6 §4.1","PLAN-P1 §7.4"] },
+        { "axis": "검증의 실효성", "attack": "각 AC가 재실행 산출물로 판정되었는가", "planRefs": ["PLAN-P6 §3","PLAN-P6 §4.5.1"] },
+        { "axis": "오프라인 역검증", "attack": "가드가 실제로 차단하는지 확인했는가", "planRefs": ["PLAN-P6 §4.3"] },
+        { "axis": "재현성 판정", "attack": "허용 오차를 사후 완화하지 않았는가", "planRefs": ["PLAN-P6 §4.2"] },
+        { "axis": "누수 (최종)", "attack": "4태스크 전체에서 test가 모델 선택·threshold에 개입하지 않았는가", "planRefs": ["PLAN-P6 §4.4"] },
+        { "axis": "한계선 정직성", "attack": "LIMITS.md가 실제 발생한 제약과 계약 변경을 빠짐없이 기록했는가", "planRefs": ["PLAN-P6 §4.5.2"] }
+      ]
+    }
+  ],
+  "openIssues": [
+    {
+      "id": "ISS-01",
+      "severity": "minor",
+      "description": "BRIEF.md 8.1의 'v0.1 pretrained는 모두 torchvision에 존재' 서술이 YOLOv8n·EfficientAD teacher와 충돌한다. PLAN.md 6.3에서 로컬 가중치가 모두 확보되어 조달 문제는 없으나 문구가 부정확하다",
+      "action": "사용자 승인 후 BRIEF.md 8.1 문구 정정",
+      "raisedAt": "2026-08-18",
+      "status": "open"
+    },
+    {
+      "id": "ISS-02",
+      "severity": "minor",
+      "description": "PRD.md는 3회 적대적 검증 한도를 소진해 보완 결과에 대한 재검증을 받지 못했다 (reviews/D1_PRD.md §4)",
+      "action": "잔여 위험으로 기록하고 진행. P1 적대적 검증에서 관련 조항이 간접 검증된다",
+      "raisedAt": "2026-08-18",
+      "status": "accepted"
+    },
+    {
+      "id": "ISS-03",
+      "severity": "info",
+      "description": "faster-coco-eval이 pytorch_env에 미설치 상태다 (2026-08-18 실측). torchmetrics MeanAveragePrecision은 이것 또는 pycocotools 없이 동작하지 않는다",
+      "action": "P1.1에서 설치하고 requirements.txt에 고정",
+      "raisedAt": "2026-08-18",
+      "status": "open"
+    },
+    {
+      "id": "ISS-04",
+      "severity": "info",
+      "description": "oxford_pets test.txt에 XML 주석이 0건이어서 Detection이 Cls/Seg의 정본 split을 공유하지 못한다. Detection test 이미지가 Classification train 이미지와 겹친다",
+      "action": "PLAN-P4 §3.2에 사유와 정책을 기록. 태스크 간 비교는 비범위(OUT-01)이므로 허용",
+      "raisedAt": "2026-08-18",
+      "status": "resolved"
+    }
+  ]
+}

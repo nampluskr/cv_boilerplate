@@ -1,0 +1,17 @@
+name: toy_cls_baseline
+task_name: toy_cls
+base: configs/toy/_base.yaml
+
+control:
+  exceptions: []
+
+splits:
+  - name: toy_cnn
+    override:
+      model: {name: toy_cnn, params: {num_classes: 4}}
+  - name: toy_cnn_small
+    override:
+      model: {name: toy_cnn_small, params: {num_classes: 4}}
+  - name: toy_mlp
+    override:
+      model: {name: toy_mlp, params: {num_classes: 4, image_size: [32, 32]}}

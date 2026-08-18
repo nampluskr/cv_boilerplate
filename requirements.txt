@@ -1,0 +1,6 @@
+torch==2.5.1
+torchvision==0.20.1
+torchmetrics==1.8.2
+pyyaml
+faster-coco-eval
+pillow

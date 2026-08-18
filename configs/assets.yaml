@@ -1,0 +1,18 @@
+datasets:
+  oxford_pets:
+    root: /mnt/d/datasets/oxford_pets
+    require: [images, annotations/trimaps, annotations/xmls, annotations/list.txt]
+  mvtec_bottle:
+    root: /mnt/d/datasets/mvtec/bottle
+    require: [train/good, test, ground_truth]
+
+weights:
+  resnet50: /mnt/d/backbones/resnet50-0676ba61.pth
+  efficientnet_b0: /mnt/d/backbones/efficientnet_b0_rwightman-7f5810bc.pth
+  deeplabv3_resnet50: /mnt/d/backbones/deeplabv3_resnet50_coco-cd0a2569.pth
+  fcn_resnet50: /mnt/d/backbones/fcn_resnet50_coco-1167a1af.pth
+  fasterrcnn_resnet50_fpn: /mnt/d/backbones/fasterrcnn_resnet50_fpn_coco-258fb6c6.pth
+  yolov8n: /mnt/d/backbones/yolov8n.pt
+  efficientad_teacher_small: /mnt/d/backbones/efficientad_pretrained_weights/pretrained_teacher_small.pth
+  resnet18: /mnt/d/backbones/resnet18-f37072fd.pth
+  wide_resnet50_2: /mnt/d/backbones/wide_resnet50_2-95faca4d.pth
