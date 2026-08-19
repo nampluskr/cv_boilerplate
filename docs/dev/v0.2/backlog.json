@@ -192,7 +192,7 @@
       "id": "N5",
       "name": "tasks 노트북 3개 (Seg / Det / Anomaly)",
       "owner": "master",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "N4"
       ],
