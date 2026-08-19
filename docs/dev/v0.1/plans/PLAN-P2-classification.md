@@ -172,12 +172,22 @@ pretrained 모델은 다음 순서를 지킨다. 순서를 바꾸면 head 교체
 
 | 에이전트 | registry key | 파일 | config | 내용 |
 |---|---|---|---|---|
-| 모델 에이전트 1 | `custom_cnn_cls` | `src/tasks/classification/models/custom_cnn.py` | `configs/classification/custom_cnn.yaml` | from scratch CNN. conv-BN-ReLU 블록 5단 + GAP + Linear. pretrained 없음 |
+| 모델 에이전트 1 | `custom_cnn_cls` | `src/tasks/classification/models/custom_cnn.py` | `configs/classification/custom_cnn.yaml` | from scratch CNN. 공통 backbone(§4.3.1) + GAP + Linear. pretrained 없음 |
 | 모델 에이전트 2 | `resnet50_cls` | `.../models/resnet50.py` | `configs/classification/resnet50.yaml` | `torchvision.models.resnet50`, 로컬 `resnet50-0676ba61.pth`, `fc` 교체 |
 | 모델 에이전트 3 | `efficientnet_b0_cls` | `.../models/efficientnet_b0.py` | `configs/classification/efficientnet_b0.yaml` | `torchvision.models.efficientnet_b0`, 로컬 `efficientnet_b0_rwightman-7f5810bc.pth`, `classifier[1]` 교체 |
 
 각 에이전트는 위 2개 파일만 생성·수정한다. 다른 파일을 수정해야 하는 상황이 생기면 직접 고치지 않고
 변경 요청을 반환한다(`PLAN.md` 5.1).
+
+#### 4.3.1. Custom CNN backbone
+
+backbone은 `PLAN.md §3.1.1`에 정의한 공통 기준안을 그대로 쓴다(`custom_unet_seg`, `custom_fcos_det`과
+공유). `ConvBlock = Conv2d(bias=False) → BatchNorm2d → ReLU(inplace=True)` 1종만 사용하는 stage 5단
+(C1~C5, 채널 `3→32→64→128→256→512`, 누적 stride 2/4/8/16/32)이며, `forward`는
+`{"final": C5, "stages": [C1..C5]}`를 반환한다.
+
+P2는 `final`(C5)만 소비한다. head는 `AdaptiveAvgPool2d(1)`로 `C5`(512채널)를 GAP한 뒤
+`Linear(512, num_classes)`로 logits을 낸다.
 
 Custom CNN의 파라미터 규모는 5M 이하를 목표로 한다. 비교 축이 "정확도 대 파라미터/효율"이므로
 (`PRD.md` 2.1) pretrained 대비 경량이어야 비교가 의미를 갖는다.

@@ -232,7 +232,7 @@ class <ModelName>(nn.Module):
 
 | 구성 | 기준안 |
 |---|---|
-| backbone | from scratch. conv-BN-ReLU 스테이지 5단, 채널 `[32, 64, 128, 256, 512]` |
+| backbone | from scratch. `PLAN.md §3.1.1`에 정의한 공통 backbone(`ConvBlock = Conv2d(bias=False)→BatchNorm2d→ReLU`, stage 5단, 채널 `[32, 64, 128, 256, 512]`, 누적 stride 2/4/8/16/32) — `custom_cnn_cls`(P2), `custom_unet_seg`(P3)와 공유 |
 | neck | FPN. `C3, C4, C5` → `P3, P4, P5` (stride 8/16/32), 채널 128 통일 |
 | head | 레벨 공유. classification 분기(`num_classes-1` 채널, sigmoid), regression 분기(`ltrb` 4채널), centerness 1채널 |
 | assigner | center sampling. 각 레벨의 크기 범위로 객체를 배정 |

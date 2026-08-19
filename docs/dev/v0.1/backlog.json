@@ -114,7 +114,7 @@
       "id": "P2",
       "name": "Classification",
       "owner": "task-agent + 3 model-agents",
-      "status": "not_started",
+      "status": "done",
       "dependsOn": ["P1"],
       "mandatoryReview": false,
       "planDoc": "docs/dev/v0.1/plans/PLAN-P2-classification.md",

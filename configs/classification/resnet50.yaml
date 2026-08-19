@@ -1,0 +1,7 @@
+_base: _base.yaml
+model:
+  name: resnet50_cls
+  params:
+    num_classes: 37
+    backbone_name: resnet50
+    weights_path: /mnt/d/backbones/resnet50-0676ba61.pth

@@ -184,11 +184,29 @@ DeepLabV3와 FCN의 COCO 체크포인트는 `aux_classifier` 가중치를 포함
 
 | 에이전트 | registry key | 파일 | config | 내용 |
 |---|---|---|---|---|
-| 모델 에이전트 1 | `custom_unet_seg` | `src/tasks/segmentation/models/custom_unet.py` | `configs/segmentation/custom_unet.yaml` | from scratch U-Net. encoder 4단 + bottleneck + decoder 4단 + skip connection. pretrained 없음 |
+| 모델 에이전트 1 | `custom_unet_seg` | `src/tasks/segmentation/models/custom_unet.py` | `configs/segmentation/custom_unet.yaml` | from scratch U-Net. 공통 backbone(§4.3.1)을 encoder로, 대칭 decoder + skip connection. pretrained 없음 |
 | 모델 에이전트 2 | `deeplabv3_resnet50_seg` | `.../models/deeplabv3_resnet50.py` | `configs/segmentation/deeplabv3_resnet50.yaml` | 로컬 `deeplabv3_resnet50_coco-cd0a2569.pth`, ASPP head |
 | 모델 에이전트 3 | `fcn_resnet50_seg` | `.../models/fcn_resnet50.py` | `configs/segmentation/fcn_resnet50.yaml` | 로컬 `fcn_resnet50_coco-1167a1af.pth`, FCN head |
 
 각 에이전트는 위 2개 파일만 생성·수정한다. Custom U-Net의 파라미터 규모는 10M 이하를 목표로 한다.
+
+#### 4.3.1. Custom U-Net encoder/decoder
+
+encoder는 `PLAN.md §3.1.1`에 정의한 공통 backbone을 그대로 쓴다(`custom_cnn_cls`, `custom_fcos_det`과
+공유하는 `ConvBlock = Conv2d(bias=False) → BatchNorm2d → ReLU(inplace=True)` 1종, stage 5단, 채널
+`3→32→64→128→256→512`(C1~C5), 누적 stride 2/4/8/16/32).
+
+decoder는 encoder를 대칭으로 뒤집는다.
+
+| 구성 | 기준안 |
+|---|---|
+| 기본 블록 | `DeconvBlock = interpolate(nearest, scale_factor=2) → ConvBlock` |
+| 업샘플 단수 | 5단. `C5(stride32)`부터 시작해 `C4, C3, C2, C1`과 순서대로 concat skip 후 업샘플, 마지막 1단은 skip 없이 `stride2 → stride1`로 복귀 |
+| 채널 진행(업샘플 방향) | `512 → 256 → 128 → 64 → 32 → 32` |
+| head | `Conv2d(32, num_classes, kernel_size=1)` — 입력 해상도에서 raw logits (`§4.1` 규약) |
+
+`aux` 분기를 두지 않는다. torchvision 2종의 `aux_classifier`를 제거해 단일 출력으로 맞추는 것(§4.2)과
+동일한 이유로, custom U-Net도 deep supervision 없이 단일 출력만 낸다.
 
 ## 5. Loss와 Metric
 

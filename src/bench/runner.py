@@ -35,10 +35,19 @@ def build_components(config):
 
 
 def build_dataset(config, split, transform):
+    params = dict(config["data"].get("params", {}))
+    split_cfg = config["data"].get("split", {})
+    if split_cfg.get("mode") == "file" and "split_path" not in params:
+        params["split_path"] = split_cfg["path"]
     return DATASETS.build(
         config["data"]["name"], root=config["data"]["root"], split=split, transform=transform,
-        **config["data"].get("params", {}),
+        **params,
     )
+
+
+def bind_class_names(adapter, dataset):
+    if hasattr(dataset, "classes"):
+        adapter.class_names = dataset.classes
 
 
 def resolve_split_configs(bench_path, cli_overrides):
@@ -65,9 +74,11 @@ def execute_split(bench_name, split_name, config, overwrite):
 
     transform_train, transform_eval = build_transforms(config)
     model, adapter = build_components(config)
+    adapter.to(ctx.device)
     train_ds = build_dataset(config, "train", transform_train)
     valid_ds = build_dataset(config, "valid", transform_eval)
     test_ds = build_dataset(config, "test", transform_eval)
+    bind_class_names(adapter, train_ds)
 
     train_loader = build_dataloader(train_ds, config["data"], "train", adapter, ctx.seed,
                                      config["runtime"]["device"])

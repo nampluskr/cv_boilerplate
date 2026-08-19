@@ -1,0 +1,5 @@
+_base: _base.yaml
+model:
+  name: custom_cnn_cls
+  params:
+    num_classes: 37

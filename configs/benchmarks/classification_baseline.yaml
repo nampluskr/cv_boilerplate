@@ -1,0 +1,21 @@
+name: cls_baseline
+task_name: classification
+base: configs/classification/_base.yaml
+
+control:
+  exceptions: []
+
+splits:
+  - name: custom_cnn
+    override:
+      model: {name: custom_cnn_cls, params: {num_classes: 37}}
+  - name: resnet50
+    override:
+      model:
+        name: resnet50_cls
+        params: {num_classes: 37, backbone_name: resnet50, weights_path: /mnt/d/backbones/resnet50-0676ba61.pth}
+  - name: efficientnet_b0
+    override:
+      model:
+        name: efficientnet_b0_cls
+        params: {num_classes: 37, backbone_name: efficientnet_b0, weights_path: /mnt/d/backbones/efficientnet_b0_rwightman-7f5810bc.pth}

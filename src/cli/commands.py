@@ -1,7 +1,6 @@
 import os
 import sys
 
-import numpy as np
 import torch
 import yaml
 from PIL import Image
@@ -89,10 +88,19 @@ def build_components(config):
 
 
 def build_dataset(config, split, transform):
+    params = dict(config["data"].get("params", {}))
+    split_cfg = config["data"].get("split", {})
+    if split_cfg.get("mode") == "file" and "split_path" not in params:
+        params["split_path"] = split_cfg["path"]
     return DATASETS.build(
         config["data"]["name"], root=config["data"]["root"], split=split, transform=transform,
-        **config["data"].get("params", {}),
+        **params,
     )
+
+
+def bind_class_names(adapter, dataset):
+    if hasattr(dataset, "classes"):
+        adapter.class_names = dataset.classes
 
 
 def apply_network_policy(config):
@@ -127,8 +135,10 @@ def train(config_path, overrides, log_level, resume=None):
 
     transform_train, transform_eval = build_transforms(config)
     model, adapter = build_components(config)
+    adapter.to(ctx.device)
     train_ds = build_dataset(config, "train", transform_train)
     valid_ds = build_dataset(config, "valid", transform_eval)
+    bind_class_names(adapter, train_ds)
     train_loader = build_dataloader(train_ds, config["data"], "train", adapter, ctx.seed,
                                      config["runtime"]["device"])
     valid_loader = build_dataloader(valid_ds, config["data"], "valid", adapter, ctx.seed,
@@ -175,7 +185,9 @@ def evaluate(config_path, overrides, log_level, checkpoint, split):
 
     _, transform_eval = build_transforms(config)
     model, adapter = build_components(config)
+    adapter.to(ctx.device)
     dataset = build_dataset(config, split, transform_eval)
+    bind_class_names(adapter, dataset)
     loader = build_dataloader(dataset, config["data"], split, adapter, ctx.seed,
                                config["runtime"]["device"], allow_test_split=True)
 
@@ -185,11 +197,22 @@ def evaluate(config_path, overrides, log_level, checkpoint, split):
     trainer = Trainer(logger=logger)
     results = trainer.evaluate(model, adapter, loader, ctx, epoch=None, split=split)
     save_json(results, os.path.join(run_dir, "metrics_final.json"))
+
+    if config["output"].get("save_visualizations", False):
+        max_items = config["output"].get("max_visualizations", 16)
+        viz_dir = os.path.join(run_dir, "visualizations")
+        model.eval()
+        with torch.no_grad():
+            for batch in loader:
+                predictions = adapter.predict_step(model, batch, ctx.device)
+                adapter.visualize(batch, predictions, viz_dir, max_items)
+                break
+
     logger.info(f"evaluate complete. run_dir={run_dir} results={results}")
     return results
 
 
-def load_input_images(input_path, image_size):
+def load_input_images(input_path):
     if os.path.isdir(input_path):
         filenames = sorted(f for f in os.listdir(input_path)
                             if f.lower().endswith((".png", ".jpg", ".jpeg")))
@@ -197,12 +220,12 @@ def load_input_images(input_path, image_size):
     else:
         paths = [input_path]
 
-    images = []
-    for path in paths:
-        img = Image.open(path).convert("RGB").resize((image_size[1], image_size[0]))
-        array = np.asarray(img).astype(np.float32) / 255.0
-        images.append(torch.from_numpy(array).permute(2, 0, 1))
-    return images, paths
+    # Raw PIL images only, no pre-resize: the task's own transform_eval owns resize/crop/
+    # normalize so predict() sees the same preprocessing as the Dataset eval path (Codex A2
+    # finding #2 - a pre-resize here distorted aspect ratio before transform_eval ran again).
+    images = [Image.open(path).convert("RGB") for path in paths]
+    stems = [os.path.splitext(os.path.basename(path))[0] for path in paths]
+    return images, paths, stems
 
 
 def predict(config_path, overrides, log_level, checkpoint, input_path, output_dir):
@@ -221,16 +244,18 @@ def predict(config_path, overrides, log_level, checkpoint, input_path, output_di
 
     _, transform_eval = build_transforms(config)
     model, adapter = build_components(config)
+    adapter.to(ctx.device)
     load_checkpoint(checkpoint, model, map_location="cpu", restore_rng=False)
     model.to(ctx.device)
     model.eval()
 
-    images, paths = load_input_images(input_path, config["data"]["image_size"])
+    images, paths, stems = load_input_images(input_path)
     images = [transform_eval(image) for image in images]
     collate = adapter.collate_fn() or default_collate
-    batch = collate([(image, image) for image in images])
+    batch = collate(list(zip(images, stems)))
 
-    predictions = adapter.predict_step(model, batch, ctx.device)
+    with torch.no_grad():
+        predictions = adapter.predict_step(model, batch, ctx.device)
 
     predictions_dir = os.path.join(run_dir, "predictions")
     os.makedirs(predictions_dir, exist_ok=True)

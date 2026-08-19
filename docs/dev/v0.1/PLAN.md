@@ -75,6 +75,29 @@ Pn.5의 적대적 검증 결과는 `reviews/A{n}.md`에 기록하고, 변경 내
 P2~P5는 P1에만 의존하고 서로 의존하지 않는다. 순차 실행은 자원과 계약 안정성을 위한 운영 결정이며
 설계상의 의존 관계가 아니다.
 
+### 3.1.1. Custom CNN 공통 backbone (P2/P3/P4 공유 기준안)
+
+P2·P3·P4의 custom 모델(`custom_cnn_cls`, `custom_unet_seg`, `custom_fcos_det`)은 서로 의존하지 않지만
+(§3.1), backbone 구성 요소·계층 수·activation은 이 절을 단일 출처로 삼아 동일하게 둔다. 태스크 간 차이는
+이 backbone 위에 얹는 head에서만 드러나도록 한다(교육적 의도 — 동일 backbone에서 head가 태스크별로 어떻게
+분기되는지 보여준다). 각 Phase PLAN 문서는 이 절을 참조하며, 서로를 참조하지 않는다.
+
+| 구성 | 기준안 |
+|---|---|
+| 기본 블록 | `ConvBlock = Conv2d(bias=False) → BatchNorm2d → ReLU(inplace=True)` 1종만 사용 |
+| stage 수 | 5단(C1~C5), 각 stage는 위 `ConvBlock` 1개, `stride=2` |
+| 채널 진행 | `3 → 32 → 64 → 128 → 256 → 512` (C1=32 ... C5=512) |
+| 누적 stride | C1=2, C2=4, C3=8, C4=16, C5=32 |
+| `forward` 반환 | `{"final": C5, "stages": [C1, C2, C3, C4, C5]}` |
+
+- P2(`custom_cnn_cls`)는 `final`(C5)만 소비: `AdaptiveAvgPool2d(1) → Linear(512, num_classes)`.
+- P3(`custom_unet_seg`)는 `stages`를 encoder로 소비하고, `DeconvBlock = interpolate(nearest, x2) →
+  ConvBlock`로 대칭 decoder(5단, skip은 C4~C1)를 구성해 입력 해상도에서 `Conv2d(32, num_classes, k=1)`
+  logits을 낸다.
+- P4(`custom_fcos_det`)는 `stages`의 C3/C4/C5(stride 8/16/32)를 FPN 입력으로 소비한다.
+- 상세 head·decoder·neck 설계는 각 Phase PLAN 문서(`PLAN-P2 §4.3`, `PLAN-P3 §4.3`, `PLAN-P4 §4.3.1`)를
+  따른다. 이 절이 바뀌면 세 문서를 함께 갱신한다.
+
 ### 3.2. P1 — 공통 기반
 
 전체 작업량의 가장 큰 비중을 차지하며, 여기서 고정한 계약이 P2~P5의 병렬 실행 가능 여부를 결정한다.

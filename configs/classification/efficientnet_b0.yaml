@@ -1,0 +1,7 @@
+_base: _base.yaml
+model:
+  name: efficientnet_b0_cls
+  params:
+    num_classes: 37
+    backbone_name: efficientnet_b0
+    weights_path: /mnt/d/backbones/efficientnet_b0_rwightman-7f5810bc.pth
