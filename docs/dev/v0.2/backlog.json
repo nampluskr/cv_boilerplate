@@ -56,7 +56,7 @@
       "id": "N1",
       "name": "공용 헬퍼·의존성·검증 기반",
       "owner": "master",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "planRefs": [
         "PLAN §11",
@@ -81,6 +81,12 @@
         "required": false,
         "maxRuns": 0,
         "note": "노트북 산출물이 없다"
+      },
+      "decisions": {
+        "dependencies": "jupyter/ipykernel/matplotlib/pandas/notebook/nbconvert는 pytorch_env에 기설치. torchinfo만 신규 설치, requirements.txt에 반영 (사용자 승인 2026-08-19)",
+        "outputCells": "노트북 출력 셀은 저장한다. 교육용 노트북은 재실행 없이 GitHub에서 바로 결과를 볼 수 있어야 한다는 목적에 부합한다",
+        "verification": "conda activate pytorch_env 후 jupyter nbconvert --execute --to notebook --inplace <path>로 헤드리스 완주 검증. .ipynb_checkpoints/와 *.nbconvert.ipynb를 .gitignore에 추가",
+        "helperModule": "notebooks/common/{checkpoints,features,overlays,curves,leaderboard,eda}.py. overlays.py는 src/tasks/<task>/adapter.py의 visualize()를 그대로 호출해 임시 디렉터리에 저장된 PNG를 인라인으로 표시할 뿐, 렌더링 로직을 재구현하지 않는다"
       }
     },
     {
@@ -265,9 +271,9 @@
       "id": "V2-ISS-02",
       "severity": "info",
       "description": "신규 의존성(jupyter, ipykernel, matplotlib 필수 / torchinfo, pandas 선택)이 확정되지 않았다. CLAUDE.md는 새 의존성 추가 전 기존 스택으로 구현 가능한지 확인하고 사용자 승인을 받도록 규정한다",
-      "action": "N1에서 최소 집합으로 확정하고 사용자 승인 후 requirements.txt 반영 여부를 결정한다",
+      "action": "N1에서 최소 집합으로 확정하고 사용자 승인 후 requirements.txt 반영 여부를 결정한다. 확정 결과: jupyter/ipykernel/matplotlib/pandas/notebook/nbconvert는 pytorch_env에 이미 설치되어 있었다. torchinfo만 미설치였고 사용자 승인을 받아 설치 및 requirements.txt에 반영했다(2026-08-19)",
       "raisedAt": "2026-08-19",
-      "status": "open"
+      "status": "resolved"
     },
     {
       "id": "V2-ISS-03",

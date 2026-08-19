@@ -5,3 +5,8 @@ pyyaml
 faster-coco-eval==1.7.2
 ultralytics==8.4.101
 pillow
+jupyter
+ipykernel
+matplotlib
+pandas
+torchinfo
