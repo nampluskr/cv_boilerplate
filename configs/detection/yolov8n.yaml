@@ -1,0 +1,9 @@
+_base: _base.yaml
+model:
+  name: yolov8n_det
+  params:
+    num_classes: 3
+    weights_path: /mnt/d/backbones/yolov8n.pt
+    score_thresh: 0.05
+    nms_iou: 0.5
+    max_det: 100

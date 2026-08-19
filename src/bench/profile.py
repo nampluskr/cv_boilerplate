@@ -9,14 +9,14 @@ def count_params(model):
     return int(params_total), int(params_trainable)
 
 
-def measure_flops(model, image_size, device):
+def measure_flops(model, adapter, image_size, device):
     try:
         from torch.utils.flop_counter import FlopCounterMode
     except ImportError:
         return None
 
     model.eval()
-    dummy = torch.zeros(1, 3, image_size[0], image_size[1], device=device)
+    dummy = adapter.dummy_forward_input(image_size, device)
     try:
         with torch.no_grad(), FlopCounterMode(display=False) as flop_counter:
             model(dummy)
@@ -26,9 +26,9 @@ def measure_flops(model, image_size, device):
         return None
 
 
-def measure_fps(model, image_size, device, warmup=10, iters=50):
+def measure_fps(model, adapter, image_size, device, warmup=10, iters=50):
     model.eval()
-    dummy = torch.zeros(1, 3, image_size[0], image_size[1], device=device)
+    dummy = adapter.dummy_forward_input(image_size, device)
     latencies = []
     with torch.no_grad():
         for _ in range(warmup):
@@ -50,10 +50,10 @@ def measure_fps(model, image_size, device, warmup=10, iters=50):
     return 1.0 / median_latency
 
 
-def profile_model(model, image_size, device):
+def profile_model(model, adapter, image_size, device):
     params_total, params_trainable = count_params(model)
-    flops_g = measure_flops(model, image_size, device)
-    fps = measure_fps(model, image_size, device)
+    flops_g = measure_flops(model, adapter, image_size, device)
+    fps = measure_fps(model, adapter, image_size, device)
     return {
         "params_total": params_total,
         "params_trainable": params_trainable,

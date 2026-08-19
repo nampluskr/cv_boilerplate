@@ -45,7 +45,12 @@ def get_by_path(config, dotted_path):
     return node
 
 
-def build_control_report(split_configs, exceptions):
+def build_control_report(split_configs, exceptions, extra_fields=None):
+    """extra_fields lets a benchmark config declare additional dotted paths to control on top of
+    CONTROL_FIELDS (bench yaml `control.extra_fields`). This is a generic, config-driven
+    extension point -- any task can use it, none is named here -- for promoting task-specific
+    postprocessing hyperparameters to controlled fields without hardcoding a task name into
+    this module (Grade B contract extension, PLAN-P1 SS16)."""
     validate_exceptions(exceptions)
     exceptions_index = {(e["split"], e["field"]): e for e in exceptions}
     split_names = list(split_configs.keys())
@@ -55,7 +60,7 @@ def build_control_report(split_configs, exceptions):
     violations = []
     applied_exceptions = []
 
-    for field in CONTROL_FIELDS:
+    for field in list(CONTROL_FIELDS) + list(extra_fields or []):
         reference_value = get_by_path(split_configs[reference_split], field)
         field_report = {reference_split: reference_value}
         for split_name in split_names[1:]:
@@ -79,11 +84,12 @@ def build_control_report(split_configs, exceptions):
         "fields": fields_report,
         "violations": violations,
         "exceptions_applied": applied_exceptions,
+        "extra_fields": list(extra_fields or []),
     }
 
 
-def enforce_control(split_configs, exceptions):
-    report = build_control_report(split_configs, exceptions)
+def enforce_control(split_configs, exceptions, extra_fields=None):
+    report = build_control_report(split_configs, exceptions, extra_fields)
     if report["violations"]:
         raise ControlViolationError(
             f"Unapproved control field differences across splits: {report['violations']}"

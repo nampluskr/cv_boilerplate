@@ -1,1 +1,1 @@
-from src.tasks import classification, segmentation, toy  # noqa: F401
+from src.tasks import classification, detection, segmentation, toy  # noqa: F401

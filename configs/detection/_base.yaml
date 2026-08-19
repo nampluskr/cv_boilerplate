@@ -1,0 +1,54 @@
+meta:
+  task_name: detection
+  description: "oxford_pets cat/dog detection baseline (PLAN-P4 SS8.2)"
+
+runtime:
+  seed: 42
+  device: cuda
+  amp: false
+  deterministic: warn
+  allow_network: false
+
+data:
+  name: oxford_pets_det
+  root: /mnt/d/datasets/oxford_pets
+  params: {class_names: [cat, dog], drop_difficult: false}
+  image_size: [512, 512]
+  batch_size: 4
+  num_workers: 4
+  drop_last: false
+  split:
+    mode: file
+    path: configs/splits/oxford_pets_subset_det.json
+  transform:
+    train: {name: det_train, params: {}}
+    eval:  {name: det_eval,  params: {}}
+
+loss:
+  name: none
+  params: {}
+
+metrics:
+  - {name: map_50_95, params: {box_format: xyxy}}
+
+adapter:
+  name: detection
+  params: {}
+
+optim:
+  optimizer: {name: sgd,    params: {lr: 0.005, momentum: 0.9, weight_decay: 0.0005}}
+  scheduler: {name: cosine, params: {t_max: 5, eta_min: 0.00005}}
+
+train:
+  epochs: 5
+  grad_clip: 10.0
+  monitor: {metric: map_50_95, mode: max}
+  log_interval: 10
+  save_last: true
+
+output:
+  root: outputs
+  run_name: null
+  save_predictions: true
+  save_visualizations: true
+  max_visualizations: 16

@@ -1,0 +1,11 @@
+_base: _base.yaml
+model:
+  name: custom_fcos_det
+  params:
+    num_classes: 3
+    weights_path: null
+    score_thresh: 0.05
+    nms_iou: 0.5
+    max_det: 100
+    fpn_channels: 128
+    pre_nms_topk: 1000

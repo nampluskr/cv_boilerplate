@@ -62,3 +62,22 @@ class TaskAdapter(ABC):
 
     def visualize(self, batch, predictions, output_dir, max_items):
         pass
+
+    def bind_class_names_from_config(self, data_config):
+        """Bind class names from config['data'] alone, for CLI paths (predict) that have no
+        Dataset instance to read .classes from (bind_class_names in src/cli/commands.py handles
+        the train/evaluate paths, which do have one). Default no-op; override in tasks whose
+        adapter carries a class_names attribute used to label predictions."""
+        pass
+
+    def dummy_forward_input(self, image_size, device):
+        """Return a dummy input matching this task's model.forward() calling convention, used
+        only for profiling (src/bench/profile.py: params/FLOPs/FPS measurement). Default is the
+        single-batched-Tensor convention (forward(images: Tensor(B, C, H, W))) most task models
+        use. A task whose model.forward() takes a different calling convention overrides this in
+        its own adapter -- routing the convention through the adapter (like collate_fn/batch_size
+        already do) keeps profile.py task-agnostic instead of guessing/duck-typing per model
+        (PLAN-P1 SS16 Grade B)."""
+        import torch
+
+        return torch.zeros(1, 3, image_size[0], image_size[1], device=device)

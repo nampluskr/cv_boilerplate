@@ -99,7 +99,7 @@ def execute_split(bench_name, split_name, config, overwrite):
     train_time_sec = time.perf_counter() - start
 
     test_results = trainer.evaluate(model, adapter, test_loader, ctx, epoch=None, split="test")
-    profile_result = profile_model(model, config["data"]["image_size"], ctx.device)
+    profile_result = profile_model(model, adapter, config["data"]["image_size"], ctx.device)
 
     save_json({"valid": {config["train"]["monitor"]["metric"]: best_metric}, "test": test_results,
                "profile": profile_result}, os.path.join(split_dir, "metrics_final.json"))
@@ -131,7 +131,8 @@ def run_benchmark(bench_path, cli_overrides, only=None, overwrite=False):
         validate_config(config)
 
     exceptions = bench.get("control", {}).get("exceptions", [])
-    control_report = enforce_control(split_configs, exceptions)
+    extra_fields = bench.get("control", {}).get("extra_fields", [])
+    control_report = enforce_control(split_configs, exceptions, extra_fields)
 
     # runtime.allow_network is a controlled field, so every split agrees on it; apply once.
     if next(iter(split_configs.values()))["runtime"]["allow_network"]:

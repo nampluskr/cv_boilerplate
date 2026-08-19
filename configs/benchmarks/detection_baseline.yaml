@@ -1,0 +1,41 @@
+name: detection_baseline
+task_name: detection
+base: configs/detection/_base.yaml
+
+control:
+  # score_thresh/nms_iou/max_det live under the free `model` block but are postprocess control
+  # conditions, not per-model hyperparameters (PLAN-P4 SS4.2/SS8.3): promoted to controlled
+  # fields here via src/bench/control.py's generic control.extra_fields mechanism so the three
+  # models cannot silently diverge on comparability-breaking NMS settings.
+  extra_fields:
+    - model.params.score_thresh
+    - model.params.nms_iou
+    - model.params.max_det
+  exceptions: []
+
+splits:
+  - name: custom_fcos
+    override:
+      model:
+        name: custom_fcos_det
+        params: {num_classes: 3, weights_path: null, score_thresh: 0.05, nms_iou: 0.5, max_det: 100}
+  - name: fasterrcnn_r50_fpn
+    override:
+      model:
+        name: fasterrcnn_r50_fpn_det
+        params:
+          num_classes: 3
+          weights_path: /mnt/d/backbones/fasterrcnn_resnet50_fpn_coco-258fb6c6.pth
+          score_thresh: 0.05
+          nms_iou: 0.5
+          max_det: 100
+  - name: yolov8n
+    override:
+      model:
+        name: yolov8n_det
+        params:
+          num_classes: 3
+          weights_path: /mnt/d/backbones/yolov8n.pt
+          score_thresh: 0.05
+          nms_iou: 0.5
+          max_det: 100

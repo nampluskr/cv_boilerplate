@@ -244,6 +244,7 @@ def predict(config_path, overrides, log_level, checkpoint, input_path, output_di
 
     _, transform_eval = build_transforms(config)
     model, adapter = build_components(config)
+    adapter.bind_class_names_from_config(config["data"])
     adapter.to(ctx.device)
     load_checkpoint(checkpoint, model, map_location="cpu", restore_rng=False)
     model.to(ctx.device)
@@ -297,6 +298,7 @@ def build_leaderboard(bench_output_dir):
     report_path = os.path.join(bench_output_dir, "control_report.json")
     previous_report = load_json(report_path) if os.path.isfile(report_path) else {"exceptions_applied": []}
     exceptions = previous_report.get("exceptions_applied", [])
+    extra_fields = previous_report.get("extra_fields", [])
 
     expected_splits = previous_report.get("expected_splits")
     if expected_splits is not None:
@@ -308,7 +310,7 @@ def build_leaderboard(bench_output_dir):
                 f"leaderboard that silently drops splits from the control comparison."
             )
 
-    control_report = enforce_control(split_configs, exceptions)
+    control_report = enforce_control(split_configs, exceptions, extra_fields)
     control_report["expected_splits"] = expected_splits if expected_splits is not None else split_names
     save_json(control_report, report_path)
 

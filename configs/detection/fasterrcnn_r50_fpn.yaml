@@ -1,0 +1,9 @@
+_base: _base.yaml
+model:
+  name: fasterrcnn_r50_fpn_det
+  params:
+    num_classes: 3
+    weights_path: /mnt/d/backbones/fasterrcnn_resnet50_fpn_coco-258fb6c6.pth
+    score_thresh: 0.05
+    nms_iou: 0.5
+    max_det: 100

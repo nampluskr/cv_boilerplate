@@ -2,7 +2,7 @@
   "project": "cv_boilerplate",
   "version": "v0.1",
   "createdAt": "2026-08-18",
-  "updatedAt": "2026-08-18",
+  "updatedAt": "2026-08-19",
   "remoteRepository": "https://github.com/nampluskr/cv_boilerplate",
   "documentChain": [
     "docs/dev/v0.1/BRIEF.md",
@@ -192,7 +192,7 @@
       "id": "P4",
       "name": "Object Detection",
       "owner": "task-agent + 3 model-agents",
-      "status": "not_started",
+      "status": "done",
       "dependsOn": ["P1"],
       "mandatoryReview": true,
       "riskLevel": "high",
@@ -340,9 +340,9 @@
       "id": "ISS-03",
       "severity": "info",
       "description": "faster-coco-eval이 pytorch_env에 미설치 상태다 (2026-08-18 실측). torchmetrics MeanAveragePrecision은 이것 또는 pycocotools 없이 동작하지 않는다",
-      "action": "P1.1에서 설치하고 requirements.txt에 고정",
+      "action": "P4.1에서 설치 확인(1.7.2) 및 requirements.txt에 고정 완료",
       "raisedAt": "2026-08-18",
-      "status": "open"
+      "status": "resolved"
     },
     {
       "id": "ISS-04",

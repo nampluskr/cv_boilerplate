@@ -16,11 +16,17 @@ def sort_rows(rows, monitor_metric, monitor_mode):
 
 def build_leaderboard(bench_dir, bench_name, rows, metric_names, monitor_metric, monitor_mode,
                        control_report):
-    fieldnames = (
-        ["split", "model", "status"] + metric_names +
-        ["params_total", "flops_g", "fps", "best_epoch", "train_time_sec", "batch_size",
-         "image_size", "seed", "control_status", "exceptions", "run_dir"]
-    )
+    profile_fields = [
+        "params_total", "flops_g", "fps", "best_epoch", "train_time_sec", "batch_size",
+        "image_size", "seed", "control_status", "exceptions", "run_dir",
+    ]
+    core_fields = ["split", "model", "status"] + metric_names + profile_fields
+    # A metric's compute_metrics() can report more columns than its own registered name (e.g.
+    # one metric reporting several derived sub-scores alongside its primary value). Collect any
+    # such extra keys generically from the rows themselves so the leaderboard schema stays
+    # metric-agnostic instead of hardcoding per-task column names here.
+    extra_fields = sorted({key for row in rows for key in row} - set(core_fields) - {"error"})
+    fieldnames = ["split", "model", "status"] + metric_names + extra_fields + profile_fields
     ordered_rows = sort_rows(rows, monitor_metric, monitor_mode)
 
     csv_path = os.path.join(bench_dir, "leaderboard.csv")
@@ -41,8 +47,9 @@ def build_leaderboard(bench_dir, bench_name, rows, metric_names, monitor_metric,
             for exception in control_report["exceptions_applied"]:
                 f.write(f"- {exception}\n")
         f.write(
-            "\n`fps` measures model forward pass only (batch=1, warmup 10, 50 iterations), "
-            "excludes data loading and postprocessing.\n"
+            "\n`fps` measures model.forward() end-to-end (batch=1, warmup 10, 50 iterations), "
+            "excludes data loading; for tasks whose forward() applies postprocessing internally, "
+            "that cost is included.\n"
         )
         f.write("\nv0.1's purpose is pipeline validation, not absolute performance.\n")
 
