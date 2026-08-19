@@ -124,7 +124,7 @@
       "id": "N3",
       "name": "toy 태스크 노트북 4개",
       "owner": "master",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "N2"
       ],
