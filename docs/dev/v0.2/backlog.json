@@ -1,0 +1,320 @@
+{
+  "project": "cv_boilerplate",
+  "version": "v0.2",
+  "title": "교육용 Jupyter 노트북",
+  "createdAt": "2026-08-19",
+  "updatedAt": "2026-08-19",
+  "remoteRepository": "https://github.com/nampluskr/cv_boilerplate",
+  "documentChain": [
+    "docs/dev/v0.2/PLAN.md",
+    "docs/dev/v0.2/backlog.json"
+  ],
+  "documentChainNote": "BRIEF.md, PRD.md, Phase별 plans/PLAN-P{n}-*.md는 두지 않는다. PLAN.md가 요구사항과 구현 설계를 함께 담는 단일 사양 문서이며 그 절 번호가 조항 ID다. 사유는 PLAN §1.1",
+  "baseVersion": {
+    "version": "v0.1",
+    "status": "P1~P6 완료, 커밋 40e8d48",
+    "policy": "v0.1의 src·configs·scripts·docs/dev/v0.1은 참조 전용이며 수정하지 않는다 (PLAN §10)"
+  },
+  "executionModel": {
+    "layers": [
+      {
+        "layer": "master",
+        "actor": "메인 세션",
+        "responsibility": "전체 Phase 구현, 검증, 보고, 커밋"
+      }
+    ],
+    "phaseOrder": "sequential",
+    "delegation": "v0.2는 태스크 에이전트·모델 에이전트 위임을 사용하지 않는다. 노트북은 공통 헬퍼와 템플릿을 공유하므로 병렬 작성 시 편차가 커진다",
+    "adversarialReview": "노트북 산출물을 대상으로만 수행한다. PLAN.md와 backlog.json 자체는 검증 대상이 아니다 (PLAN §13). 상세 절차는 PLAN §15.4"
+  },
+  "commonVerification": {
+    "method": "jupyter nbconvert --execute",
+    "environment": "conda activate pytorch_env",
+    "ref": "PLAN §15.3",
+    "rule": "Phase 완료 시점에 해당 Phase의 노트북을 실행하고, N6에서 9개 전체를 재실행한다",
+    "toyOfflineCheck": "notebooks/toy 5개는 로컬 데이터셋·체크포인트를 참조할 수 없는 상태를 가정한 실행으로 별도 확인한다"
+  },
+  "artifacts": {
+    "helperModule": "notebooks/common/",
+    "toyNotebooks": [
+      "notebooks/toy/00_engine.ipynb",
+      "notebooks/toy/01_toy_cls.ipynb",
+      "notebooks/toy/02_toy_seg.ipynb",
+      "notebooks/toy/03_toy_det.ipynb",
+      "notebooks/toy/04_toy_anomaly.ipynb"
+    ],
+    "taskNotebooks": [
+      "notebooks/tasks/01_classification.ipynb",
+      "notebooks/tasks/02_segmentation.ipynb",
+      "notebooks/tasks/03_detection.ipynb",
+      "notebooks/tasks/04_anomaly.ipynb"
+    ],
+    "checkpointSource": "outputs/benchmarks/{cls,seg,detection,anomaly}_baseline/splits/<model>/checkpoints/best.pth"
+  },
+  "phases": [
+    {
+      "id": "N1",
+      "name": "공용 헬퍼·의존성·검증 기반",
+      "owner": "master",
+      "status": "todo",
+      "dependsOn": [],
+      "planRefs": [
+        "PLAN §11",
+        "PLAN §15.1",
+        "PLAN §15.3"
+      ],
+      "scope": [
+        "notebooks/common/ 모듈 작성 — feature map 추출·그리드, 태스크별 예측 오버레이, 학습 곡선, leaderboard 표, EDA 플롯, 체크포인트 존재 확인과 부재 안내",
+        "신규 의존성 확정과 사용자 승인 (jupyter, ipykernel, matplotlib 필수 / torchinfo, pandas 선택)",
+        "requirements.txt 반영 여부 결정",
+        "nbconvert 기반 완주 검증 절차 확정",
+        "노트북 출력 셀 저장 여부 결정",
+        ".gitignore에 nbconvert 산출물과 노트북 체크포인트 캐시 반영"
+      ],
+      "acceptanceCriteria": [
+        "notebooks/common/이 4태스크 각각의 예측 오버레이와 feature map 시각화를 제공한다",
+        "notebooks/common/에 학습·평가 로직이나 src를 대신하는 래퍼가 없다",
+        "신규 의존성이 사용자 승인 아래 확정되고 최소 집합으로 유지된다",
+        "체크포인트 부재 시 재생산 커맨드를 안내하는 헬퍼가 동작한다"
+      ],
+      "adversarialReview": {
+        "required": false,
+        "maxRuns": 0,
+        "note": "노트북 산출물이 없다"
+      }
+    },
+    {
+      "id": "N2",
+      "name": "toy/00_engine.ipynb",
+      "owner": "master",
+      "status": "todo",
+      "dependsOn": [
+        "N1"
+      ],
+      "planRefs": [
+        "PLAN §4.1",
+        "PLAN §4.3"
+      ],
+      "scope": [
+        "Config 로더 — 상속, --set override, 검증 실패 동작, config.resolved.yaml의 의미",
+        "Registry — 모델·데이터셋·transform·metric·adapter 등록과 조회",
+        "TaskAdapter 계약 — 엔진의 요구사항과 어댑터가 태스크 차이를 흡수하는 지점",
+        "Trainer 루프 — epoch 진행, train()/eval() 경계, no_grad() 범위, metric 리셋, checkpoint, monitor 기반 best 선택",
+        "비표준 학습 훅 on_fit_start / on_fit_end의 필요성과 호출 지점",
+        "엔진 순수성 — 공통 루프에 태스크 이름 분기가 없음을 코드로 확인"
+      ],
+      "acceptanceCriteria": [
+        "로컬 데이터셋과 체크포인트 없이 완주한다",
+        "toy 모델 학습이 노트북 안에서 CPU로도 완주한다",
+        "학습 로직을 재구현하지 않고 src/core를 import한다"
+      ],
+      "adversarialReview": {
+        "required": false,
+        "maxRuns": 0,
+        "note": "단독 노트북 1개이므로 N3의 검증에 포함해 함께 검토한다"
+      }
+    },
+    {
+      "id": "N3",
+      "name": "toy 태스크 노트북 4개",
+      "owner": "master",
+      "status": "todo",
+      "dependsOn": [
+        "N2"
+      ],
+      "planRefs": [
+        "PLAN §4.2",
+        "PLAN §4.3"
+      ],
+      "scope": [
+        "01_toy_cls — 고정 형태 타깃과 stacked 배치",
+        "02_toy_seg — (H,W) long 타깃, 마스크에 보간·정규화를 적용하지 않는 이유",
+        "03_toy_det — 가변 길이 타깃, collate_fn이 list를 유지하는 이유, N=0 배치 통과",
+        "04_toy_anomaly — 학습 시 빈 타깃, 모델별 train_step 분기, 훅을 통한 threshold·정규화 상수 산출"
+      ],
+      "acceptanceCriteria": [
+        "4개 노트북이 로컬 데이터셋과 체크포인트 없이 완주한다",
+        "03_toy_det가 N=0/1/>1 혼재 배치를 시연한다",
+        "04_toy_anomaly가 on_fit_start/on_fit_end에 test loader가 전달되지 않음을 보여준다",
+        "Codex 적대적 검증 1회를 실행하고 미해결 Critical이 없다 (PLAN §15.4)"
+      ],
+      "adversarialReview": {
+        "required": true,
+        "maxRuns": 1,
+        "recordIn": "docs/dev/v0.2/reviews/N3.md",
+        "note": "N2의 00_engine.ipynb를 함께 검토 대상에 포함한다"
+      }
+    },
+    {
+      "id": "N4",
+      "name": "tasks/01_classification.ipynb (실데이터 템플릿 확정)",
+      "owner": "master",
+      "status": "todo",
+      "dependsOn": [
+        "N1"
+      ],
+      "planRefs": [
+        "PLAN §5",
+        "PLAN §6",
+        "PLAN §7",
+        "PLAN §8"
+      ],
+      "note": "실데이터 노트북 템플릿이 여기서 처음 실체화된다. 확정 후 N5의 3개 노트북에 적용한다",
+      "scope": [
+        "5장 공통 템플릿의 실제 구현 — 태스크 개요, 데이터 섹션, 어댑터 계약, 모델별 섹션 3개, 3모델 비교",
+        "EDA — 37 breeds 클래스별 분포, cat/dog 상위 비율, 해상도 분포, raw 샘플 그리드 (전체 데이터셋 기준)",
+        "Dataset/DataLoader 출력 검증 — 0-based 라벨, transform 전후 비교, collate 후 배치 구조, adapter의 device 이동",
+        "custom_cnn / resnet50 / efficientnet_b0 구조 요약, forward shape 추적, feature map, best.pth 추론, 학습 곡선",
+        "cls_baseline leaderboard 표와 정확도 대 params/FLOPs/FPS 트레이드오프"
+      ],
+      "acceptanceCriteria": [
+        "nbconvert 완주",
+        "EDA의 split별 샘플 수가 configs/splits 정의와 일치한다",
+        "3모델의 예측 오버레이와 중간 feature map이 모두 생성된다",
+        "비교 섹션 수치가 outputs/benchmarks/cls_baseline/leaderboard.csv와 일치한다",
+        "체크포인트 부재 환경에서 재생산 안내와 함께 명확히 실패한다",
+        "5장 템플릿이 N5에 적용 가능한 형태로 확정된다",
+        "Codex 적대적 검증 1회를 실행하고 미해결 Critical이 없다 (PLAN §15.4)"
+      ],
+      "adversarialReview": {
+        "required": true,
+        "maxRuns": 1,
+        "recordIn": "docs/dev/v0.2/reviews/N4.md"
+      }
+    },
+    {
+      "id": "N5",
+      "name": "tasks 노트북 3개 (Seg / Det / Anomaly)",
+      "owner": "master",
+      "status": "todo",
+      "dependsOn": [
+        "N4"
+      ],
+      "planRefs": [
+        "PLAN §5",
+        "PLAN §6.2",
+        "PLAN §6.3",
+        "PLAN §7",
+        "PLAN §8"
+      ],
+      "scope": [
+        "02_segmentation — trimap {1,2,3}→{0,1,2} 매핑 확인, 3-class 픽셀 비율 EDA, 마스크에 보간·정규화 미적용 확인, ASPP 유무 비교",
+        "03_detection — 박스 크기·종횡비 분포, 이미지당 객체 수 실측, 절대 xyxy와 1-based 라벨 확인, N=0/1/>1 혼재 배치 시연, 자체 split 사유, 1-stage 대 2-stage 비교",
+        "04_anomaly — good/defect 분포와 결함 면적 EDA, 학습 시 빈 타깃 확인, {0,1} 마스크와 정상 이미지 영행렬 마스크, image 대 pixel AUROC 강점 차이"
+      ],
+      "acceptanceCriteria": [
+        "3개 노트북 모두 nbconvert 완주",
+        "각 태스크 9개 모델(3태스크 x 3모델)의 예측 오버레이와 feature map이 생성된다",
+        "비교 섹션 수치가 각 leaderboard.csv와 일치한다",
+        "N4에서 확정한 템플릿 구조를 벗어나지 않는다",
+        "Codex 적대적 검증 1회를 실행하고 미해결 Critical이 없다 (PLAN §15.4)"
+      ],
+      "adversarialReview": {
+        "required": true,
+        "maxRuns": 1,
+        "recordIn": "docs/dev/v0.2/reviews/N5.md"
+      }
+    },
+    {
+      "id": "N6",
+      "name": "전체 완주 검증·마무리",
+      "owner": "master",
+      "status": "todo",
+      "dependsOn": [
+        "N3",
+        "N5"
+      ],
+      "planRefs": [
+        "PLAN §12",
+        "PLAN §15.3",
+        "PLAN §15.4"
+      ],
+      "scope": [
+        "9개 노트북 nbconvert 전체 재실행",
+        "notebooks/toy 5개를 데이터셋·체크포인트 미참조 조건으로 재실행",
+        "성공 기준 12장 7개 항목 대조표 작성",
+        "README.md에 notebooks/ 사용 안내 추가",
+        "src/ 미수정 확인",
+        "N3~N5 적대적 검증의 Major·Minor 처리 결과 정리"
+      ],
+      "acceptanceCriteria": [
+        "9개 노트북이 오류 없이 완주한다",
+        "notebooks/toy 5개가 로컬 데이터셋·체크포인트 없이 완주한다",
+        "12장 성공 기준 7개 항목이 모두 산출물로 판정된다",
+        "git diff에 src/ 변경이 없다",
+        "Codex 적대적 검증 1회를 실행하고 미해결 Critical이 없다 (PLAN §15.4)"
+      ],
+      "adversarialReview": {
+        "required": true,
+        "maxRuns": 1,
+        "recordIn": "docs/dev/v0.2/reviews/N6.md",
+        "note": "9개 노트북 전체를 대상으로 최종 검토한다"
+      }
+    }
+  ],
+  "openIssues": [
+    {
+      "id": "V2-ISS-01",
+      "severity": "info",
+      "description": "outputs/는 .gitignore 대상이므로 새 clone이나 다른 환경에서는 notebooks/tasks가 요구하는 체크포인트가 없다",
+      "action": "PLAN §9.1에 따라 재생산 커맨드를 안내하고 명확히 실패하도록 구현한다. N1의 헬퍼와 N4~N5의 수용 기준에 포함",
+      "raisedAt": "2026-08-19",
+      "status": "accepted"
+    },
+    {
+      "id": "V2-ISS-02",
+      "severity": "info",
+      "description": "신규 의존성(jupyter, ipykernel, matplotlib 필수 / torchinfo, pandas 선택)이 확정되지 않았다. CLAUDE.md는 새 의존성 추가 전 기존 스택으로 구현 가능한지 확인하고 사용자 승인을 받도록 규정한다",
+      "action": "N1에서 최소 집합으로 확정하고 사용자 승인 후 requirements.txt 반영 여부를 결정한다",
+      "raisedAt": "2026-08-19",
+      "status": "open"
+    },
+    {
+      "id": "V2-ISS-03",
+      "severity": "info",
+      "description": "v0.1의 미해결 항목 ISS-01(BRIEF 문구 정정)과 ISS-06(Trainer.fit() resume 분기 재설계)은 v0.2 비범위다",
+      "action": "v0.2에서 처리하지 않는다. 별도 승인 시 개별 작업으로 진행",
+      "raisedAt": "2026-08-19",
+      "status": "accepted"
+    }
+  ],
+  "adversarialReview": {
+    "ref": "PLAN §15.4",
+    "target": "생성된 노트북 파일과 notebooks/common/, 그리고 노트북이 참조하는 src/ 코드",
+    "nonTarget": "docs/dev/v0.2/PLAN.md, docs/dev/v0.2/backlog.json",
+    "timing": "각 Phase의 노트북 작성과 nbconvert 완주 검증을 마친 직후",
+    "maxRunsPerPhase": 1,
+    "attemptLimitNote": "CLAUDE.md의 Verification Attempt Limit 3회를 v0.2에서는 1회로 축약한다. 수정 후 재검토는 하지 않고 수정 내용과 남은 위험을 기록한다",
+    "reviewer": "codex exec --model gpt-5.6-sol --sandbox read-only --cd \"/mnt/d/projects/nampluskr/00_review/260818_cv-boilerplate\"",
+    "reviewerRule": "구현자가 Claude Code이므로 반대 벤더인 Codex CLI를 사용한다. 모델 접근이 거부되면 조용히 폴백하지 않고 오류와 대체안을 사용자에게 보고한다",
+    "timeoutSeconds": 600,
+    "recordDir": "docs/dev/v0.2/reviews/",
+    "adversarialFocus": [
+      {
+        "axis": "설명 정확성",
+        "attack": "markdown 셀의 서술이 실제 코드 동작과 일치하는가"
+      },
+      {
+        "axis": "계약 확인의 실효성",
+        "attack": "PLAN §6.3이 확인하겠다고 한 계약(0-based 라벨, trimap 매핑, 절대 xyxy, {0,1} 마스크, N=0 통과)을 실제로 검증하는가"
+      },
+      {
+        "axis": "학습/평가 무결성",
+        "attack": "model.eval()·no_grad() 누락, metric 리셋 누락, test split 부적절 노출"
+      },
+      {
+        "axis": "v0.1 코드 우회",
+        "attack": "src/를 import하는 대신 로직을 재구현해 실제 엔진과 다른 것을 설명하는가 (PLAN §10)"
+      },
+      {
+        "axis": "오프라인",
+        "attack": "노트북 실행 경로에 네트워크 접근이 남아 있는가"
+      },
+      {
+        "axis": "수치 일관성",
+        "attack": "노트북이 제시하는 지표가 v0.1 leaderboard와 일치하는가"
+      }
+    ],
+    "blocking": "미해결 Critical이 있으면 다음 Phase로 진행하지 않는다"
+  }
+}
