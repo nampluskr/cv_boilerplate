@@ -162,7 +162,9 @@ def train(config_path, overrides, log_level, resume=None):
     ctx.finish()
 
     monitor_metric = config["train"]["monitor"]["metric"]
-    save_json({"valid": {monitor_metric: best}}, os.path.join(run_dir, "metrics_final.json"))
+    metrics_final = {"valid": {monitor_metric: best}}
+    metrics_final.update(adapter.extra_final_metrics())
+    save_json(metrics_final, os.path.join(run_dir, "metrics_final.json"))
     save_json(ctx.env_info(), os.path.join(run_dir, "env.json"))
     logger.info(f"training complete. run_dir={run_dir} best {monitor_metric}={best}")
     return run_dir

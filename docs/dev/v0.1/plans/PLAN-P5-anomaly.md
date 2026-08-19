@@ -388,6 +388,8 @@ train: {epochs: 5, grad_clip: null, monitor: {metric: image_auroc, mode: max}, l
 | 일자 | 조항 | 등급 | 변경 내용 | 요청자 | 승인 |
 |---|---|---|---|---|---|
 | 2026-08-18 | 전체 | — | 최초 작성 | master | — |
+| 2026-08-19 | §2.1, §4.4 | — | `github.com/nampluskr/defectvad`에 오프라인 샌드박스에서 접근 불가해 `stfpm_anomaly`/`efficientad_anomaly`를 원 논문과 §4 인터페이스 계약으로부터 직접 구현(`ISS-05`). 계약·수용 기준 변경 없음 | master | master (2026-08-19) |
+| 2026-08-19 | §6 | A | `best_f1_threshold`의 tie 처리 버그를 P5 Codex 적대적 검증(`reviews/A5.md` Major #1)에서 발견해 수정. 동일 정렬 점수 구간의 마지막 위치만 유효 threshold 후보로 마스킹. image/pixel threshold 계산 결과가 달라질 수 있으나 §6의 정책(valid-only, F1 최대화) 자체는 불변 | Codex A5 재검토 반영 | master (2026-08-19) |
 
 ---
 

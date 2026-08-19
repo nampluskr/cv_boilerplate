@@ -1,0 +1,5 @@
+_base: _base.yaml
+model:
+  name: efficientad_anomaly
+  params:
+    weights_path: /mnt/d/backbones/efficientad_pretrained_weights/pretrained_teacher_small.pth

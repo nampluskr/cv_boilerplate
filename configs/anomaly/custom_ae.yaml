@@ -1,0 +1,5 @@
+_base: _base.yaml
+model:
+  name: custom_ae_anomaly
+  params:
+    latent_channels: 256

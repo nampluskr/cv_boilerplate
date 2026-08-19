@@ -56,13 +56,25 @@ class Trainer:
                     ctx.env_info(),
                 )
 
-        adapter.on_fit_end(model, loaders, ctx.device)
-
-        # Model selection (PLAN-P1 SS7.3): downstream test evaluation and profiling must see the
-        # valid-selected best weights, not whatever the final training epoch happened to leave behind.
+        # Model selection (PLAN-P1 SS7.3): reload the valid-selected best weights *before*
+        # on_fit_end, not after -- otherwise a hook that calibrates buffers against the model
+        # would calibrate against whatever the final training epoch happened to leave behind,
+        # and reloading afterward would silently discard that calibration.
         if best_checkpoint_path is not None and os.path.isfile(best_checkpoint_path):
             from src.core.checkpoint import load_checkpoint
             load_checkpoint(best_checkpoint_path, model, map_location=ctx.device, restore_rng=False)
+
+        adapter.on_fit_end(model, loaders, ctx.device)
+
+        # Persist whatever on_fit_end mutated on the model (buffers, e.g. threshold/quantile
+        # constants) into best.pth's model_state, so a later `evaluate`/`predict` process -- which
+        # never calls on_fit_end itself -- sees the calibrated model. Only model_state is
+        # overwritten; optimizer/scheduler/scaler/rng stay exactly as captured at the best epoch,
+        # so --resume from best.pth is unaffected.
+        if best_checkpoint_path is not None and os.path.isfile(best_checkpoint_path):
+            checkpoint = torch.load(best_checkpoint_path, map_location=ctx.device, weights_only=False)
+            checkpoint["model_state"] = model.state_dict()
+            torch.save(checkpoint, best_checkpoint_path)
 
         return best_metric
 

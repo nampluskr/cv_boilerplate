@@ -1,0 +1,5 @@
+_base: _base.yaml
+model:
+  name: stfpm_anomaly
+  params:
+    weights_path: /mnt/d/backbones/resnet18-f37072fd.pth

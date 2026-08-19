@@ -240,7 +240,7 @@
       "id": "P5",
       "name": "Anomaly Detection",
       "owner": "task-agent + 3 model-agents",
-      "status": "not_started",
+      "status": "done",
       "dependsOn": ["P1"],
       "mandatoryReview": true,
       "planDoc": "docs/dev/v0.1/plans/PLAN-P5-anomaly.md",
@@ -351,6 +351,22 @@
       "action": "PLAN-P4 §3.2에 사유와 정책을 기록. 태스크 간 비교는 비범위(OUT-01)이므로 허용",
       "raisedAt": "2026-08-18",
       "status": "resolved"
+    },
+    {
+      "id": "ISS-05",
+      "severity": "info",
+      "description": "github.com/nampluskr/defectvad에 오프라인 샌드박스에서 접근할 수 없어 PLAN-P5 §2.1이 지정한 이식 대상 대신 stfpm_anomaly/efficientad_anomaly를 원 논문과 PLAN-P5 §4 인터페이스 계약으로부터 직접 구현했다 (custom_ae_anomaly는 원래 자체 구현 대상이라 해당 없음)",
+      "action": "각 모델 파일 상단 주석에 근거를 영어로 기록. reviews/A5.md에 배경 기록. defectvad 접근이 가능해지면 재이식은 v0.2 이후 과제로 별도 승인 필요",
+      "raisedAt": "2026-08-19",
+      "status": "accepted"
+    },
+    {
+      "id": "ISS-06",
+      "severity": "minor",
+      "description": "P5 Codex 적대적 검증(A5, Major #2)에서 새 checkpoint_dir로 --resume하되 그 디렉터리에 best.pth가 아직 없는 조합에서 Trainer.fit()의 best-reload/재저장이 스킵되어 on_fit_end가 non-best 모델을 대상으로 calibration하는 edge case가 지적됨. 이번 P5 엔진 순서 변경(PLAN-P1 §16) 이전부터 존재하던 결함이며 새로 만든 회귀가 아님",
+      "action": "v0.1 CLI 사용 패턴에 없는 드문 조합이라 리스크로 수용. Trainer.fit()의 resume 분기 재설계는 별도 Grade B 변경 요청으로 P6 LIMITS.md에 기록",
+      "raisedAt": "2026-08-19",
+      "status": "accepted"
     }
   ]
 }

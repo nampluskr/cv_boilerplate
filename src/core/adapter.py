@@ -70,6 +70,13 @@ class TaskAdapter(ABC):
         adapter carries a class_names attribute used to label predictions."""
         pass
 
+    def extra_final_metrics(self) -> dict:
+        """Extra fields to merge into metrics_final.json after training completes (PLAN-P1 SS16
+        Grade B). Default is empty -- most tasks have nothing beyond the monitored valid metric.
+        A task adapter that decides some threshold or calibration constant in on_fit_end (using
+        only the valid loader) overrides this to report it."""
+        return {}
+
     def dummy_forward_input(self, image_size, device):
         """Return a dummy input matching this task's model.forward() calling convention, used
         only for profiling (src/bench/profile.py: params/FLOPs/FPS measurement). Default is the

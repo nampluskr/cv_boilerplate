@@ -1,0 +1,21 @@
+name: anomaly_baseline
+task_name: anomaly
+base: configs/anomaly/_base.yaml
+
+control:
+  exceptions: []
+
+splits:
+  - name: custom_ae
+    override:
+      model: {name: custom_ae_anomaly, params: {latent_channels: 256}}
+  - name: stfpm
+    override:
+      model:
+        name: stfpm_anomaly
+        params: {weights_path: /mnt/d/backbones/resnet18-f37072fd.pth}
+  - name: efficientad
+    override:
+      model:
+        name: efficientad_anomaly
+        params: {weights_path: /mnt/d/backbones/efficientad_pretrained_weights/pretrained_teacher_small.pth}
