@@ -225,7 +225,7 @@
       "id": "N6",
       "name": "전체 완주 검증·마무리",
       "owner": "master",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "N3",
         "N5"

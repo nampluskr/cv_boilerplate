@@ -140,3 +140,50 @@ leaderboard의 수치를 논문 재현 성능이나 프로덕션 기준으로 �
 공통 엔진이 4개 태스크를 거치며 실제로 흡수하지 못한 경계, 발생한 등급 B 계약 변경 목록,
 알려진 채택 리스크는 [`docs/dev/v0.1/LIMITS.md`](docs/dev/v0.1/LIMITS.md)에 기록되어 있다. v0.2를
 시작하기 전에 이 문서를 먼저 읽는다.
+
+## 11. 교육용 노트북 (`notebooks/`)
+
+v0.1의 코드를 그대로 import해 실행하면서 공통 엔진의 동작 원리와 12개 모델의 설계 의도를
+단계적으로 확인할 수 있는 Jupyter 노트북 9개를 `notebooks/`에 둔다. 학습 로직을 재구현하지 않고
+`src/`를 그대로 호출하며, `src/`·`configs/`는 이 노트북들로 인해 수정되지 않는다.
+
+```text
+notebooks/
+├── common/                     # 노트북 공용 헬퍼 (feature map·오버레이·학습곡선·leaderboard·EDA·체크포인트 확인)
+├── toy/                        # 합성 toy 데이터. 데이터셋·체크포인트 불필요, CPU에서도 완주
+│   ├── 00_engine.ipynb         # Config 로더 / Registry / TaskAdapter 계약 / Trainer 루프 / 훅
+│   ├── 01_toy_cls.ipynb        # 고정 형태 타깃(스칼라 라벨)
+│   ├── 02_toy_seg.ipynb        # (H, W) 픽셀 단위 타깃
+│   ├── 03_toy_det.ipynb        # 가변 길이 타깃, N=0 배치 통과
+│   └── 04_toy_anomaly.ipynb    # 타깃 없는 학습, 모델별 train_step 분기
+└── tasks/                      # 실데이터 + v0.1 체크포인트 필요
+    ├── 01_classification.ipynb # oxford_pets 37종, custom_cnn/resnet50/efficientnet_b0
+    ├── 02_segmentation.ipynb   # oxford_pets trimap 3-class, custom_unet/deeplabv3_resnet50/fcn_resnet50
+    ├── 03_detection.ipynb      # oxford_pets cat/dog, custom_fcos/fasterrcnn_r50_fpn/yolov8n
+    └── 04_anomaly.ipynb        # mvtec bottle, custom_ae/stfpm/efficientad
+```
+
+실행 방법:
+
+```bash
+conda activate pytorch_env
+jupyter notebook notebooks/    # 또는 jupyter lab notebooks/
+```
+
+`notebooks/toy`는 로컬 데이터셋·체크포인트 없이 어떤 환경에서도 완주한다. `notebooks/tasks`는
+`/mnt/d/datasets`의 실데이터와 `outputs/benchmarks/*_baseline/splits/<model>/checkpoints/best.pth`
+(§9의 벤치마크 산출물)를 요구한다 -- `outputs/`는 `.gitignore` 대상이므로, 새로 clone한 환경에서는
+먼저 아래로 벤치마크를 재생산해야 한다.
+
+```bash
+python -m src benchmark configs/benchmarks/classification_baseline.yaml
+python -m src benchmark configs/benchmarks/segmentation_baseline.yaml
+python -m src benchmark configs/benchmarks/detection_baseline.yaml
+python -m src benchmark configs/benchmarks/anomaly_baseline.yaml
+```
+
+체크포인트가 없는 채로 `notebooks/tasks`의 노트북을 실행하면, 무작위 초기화 가중치로 조용히
+진행하는 대신 위 재생산 커맨드를 안내하며 즉시 실패한다.
+
+전체 노트북 완주 검증은 `jupyter nbconvert --to notebook --execute --inplace <path>`로 한다. 개발
+배경과 검증 절차는 [`docs/dev/v0.2/PLAN.md`](docs/dev/v0.2/PLAN.md)에 있다.
