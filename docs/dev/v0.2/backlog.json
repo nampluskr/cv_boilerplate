@@ -155,7 +155,7 @@
       "id": "N4",
       "name": "tasks/01_classification.ipynb (실데이터 템플릿 확정)",
       "owner": "master",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "N1"
       ],
