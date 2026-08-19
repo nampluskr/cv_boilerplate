@@ -1,0 +1,7 @@
+_base: _base.yaml
+model:
+  name: fcn_resnet50_seg
+  params:
+    num_classes: 3
+    backbone_name: resnet50
+    weights_path: /mnt/d/backbones/fcn_resnet50_coco-1167a1af.pth

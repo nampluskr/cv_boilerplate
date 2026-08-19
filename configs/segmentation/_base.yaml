@@ -1,0 +1,55 @@
+meta:
+  task_name: segmentation
+  description: "oxford_pets trimap 3-class segmentation baseline"
+
+runtime:
+  seed: 42
+  device: cuda
+  amp: false
+  deterministic: warn
+  allow_network: false
+
+data:
+  name: oxford_pets_seg
+  root: /mnt/d/datasets/oxford_pets
+  params: {}
+  image_size: [256, 256]
+  batch_size: 8
+  num_workers: 4
+  drop_last: false
+  split:
+    mode: file
+    path: configs/splits/oxford_pets_subset_seg.json
+  transform:
+    train: {name: seg_train, params: {}}
+    eval:  {name: seg_eval,  params: {}}
+
+loss:
+  name: seg_cross_entropy
+  params: {ignore_index: -100}
+
+metrics:
+  - {name: miou, params: {num_classes: 3}}
+  - {name: dice, params: {num_classes: 3}}
+
+adapter:
+  name: segmentation
+  params: {}
+
+optim:
+  optimizer: {name: adamw,  params: {lr: 0.0003, weight_decay: 0.0001}}
+  scheduler: {name: cosine, params: {t_max: 5, eta_min: 0.000001}}
+
+train:
+  epochs: 5
+  grad_clip: null
+  monitor: {metric: miou, mode: max}
+  log_interval: 10
+  save_last: true
+
+output:
+  root: outputs
+  run_name: null
+  save_predictions: true
+  save_visualizations: true
+  max_visualizations: 16

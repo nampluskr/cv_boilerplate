@@ -1,0 +1,5 @@
+_base: _base.yaml
+model:
+  name: custom_unet_seg
+  params:
+    num_classes: 3
