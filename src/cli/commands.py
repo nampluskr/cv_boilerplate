@@ -161,12 +161,17 @@ def train(config_path, overrides, log_level, resume=None):
                         start_epoch=start_epoch, best_metric=best_metric)
     ctx.finish()
 
+    # Re-evaluate valid with the reloaded-best + on_fit_end-calibrated model (fit()'s returned
+    # `best` was captured mid-training, before on_fit_end could mutate scoring buffers on the
+    # model, so it can silently go stale relative to the final checkpoint). A throwaway Trainer
+    # avoids appending a spurious row to metrics_epoch.csv.
+    final_valid = Trainer(logger=logger).evaluate(model, adapter, valid_loader, ctx, epoch=None, split="valid")
     monitor_metric = config["train"]["monitor"]["metric"]
-    metrics_final = {"valid": {monitor_metric: best}}
+    metrics_final = {"valid": final_valid}
     metrics_final.update(adapter.extra_final_metrics())
     save_json(metrics_final, os.path.join(run_dir, "metrics_final.json"))
     save_json(ctx.env_info(), os.path.join(run_dir, "env.json"))
-    logger.info(f"training complete. run_dir={run_dir} best {monitor_metric}={best}")
+    logger.info(f"training complete. run_dir={run_dir} best {monitor_metric}={final_valid.get(monitor_metric, best)}")
     return run_dir
 
 

@@ -20,7 +20,8 @@ def build_step_scheduler(target, step_size, gamma=0.1, **params):
 
 def build_optimizer(config_optim, model):
     spec = config_optim["optimizer"]
-    return BUILDERS.build(spec["name"], model.parameters(), **spec.get("params", {}))
+    trainable = (p for p in model.parameters() if p.requires_grad)
+    return BUILDERS.build(spec["name"], trainable, **spec.get("params", {}))
 
 
 def build_scheduler(config_optim, optimizer):

@@ -1,6 +1,8 @@
 import os
 import time
 
+import torch
+
 from src.bench.control import enforce_control
 from src.bench.profile import profile_model
 from src.core.builders import build_dataloader, build_optimizer, build_scheduler
@@ -98,11 +100,28 @@ def execute_split(bench_name, split_name, config, overwrite):
     best_metric = trainer.fit(model, adapter, train_loader, valid_loader, optimizer, scheduler, ctx)
     train_time_sec = time.perf_counter() - start
 
+    # See cli/commands.py::train() for why valid is re-evaluated here instead of reusing
+    # `best_metric`: on_fit_end can still mutate scoring buffers on the model after fit()'s
+    # mid-training best_metric was captured. Throwaway Trainer (no metrics_writer) so this pass
+    # doesn't append to metrics_epoch.csv.
+    final_valid = Trainer(logger=logger).evaluate(model, adapter, valid_loader, ctx, epoch=None, split="valid")
     test_results = trainer.evaluate(model, adapter, test_loader, ctx, epoch=None, split="test")
+
+    if config["output"].get("save_visualizations", False):
+        max_items = config["output"].get("max_visualizations", 16)
+        viz_dir = os.path.join(split_dir, "visualizations")
+        model.eval()
+        with torch.no_grad():
+            for batch in test_loader:
+                predictions = adapter.predict_step(model, batch, ctx.device)
+                adapter.visualize(batch, predictions, viz_dir, max_items)
+                break
+
     profile_result = profile_model(model, adapter, config["data"]["image_size"], ctx.device)
 
-    save_json({"valid": {config["train"]["monitor"]["metric"]: best_metric}, "test": test_results,
-               "profile": profile_result}, os.path.join(split_dir, "metrics_final.json"))
+    metrics_final = {"valid": final_valid, "test": test_results, "profile": profile_result}
+    metrics_final.update(adapter.extra_final_metrics())
+    save_json(metrics_final, os.path.join(split_dir, "metrics_final.json"))
     save_json(ctx.env_info(), os.path.join(split_dir, "env.json"))
 
     row = {

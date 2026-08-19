@@ -9,6 +9,8 @@ LOOPBACK_ADDRESSES = {"127.0.0.1", "::1"}
 original_connect = socket.socket.connect
 original_connect_ex = socket.socket.connect_ex
 original_getaddrinfo = socket.getaddrinfo
+original_sendto = socket.socket.sendto
+original_sendmsg = socket.socket.sendmsg
 guard_enabled = False
 
 
@@ -41,6 +43,24 @@ def guarded_connect_ex(self, address):
     return original_connect_ex(self, address)
 
 
+def guarded_sendto(self, *args, **kwargs):
+    if self.family == socket.AF_UNIX:
+        return original_sendto(self, *args, **kwargs)
+    address = kwargs.get("address", args[-1] if args else None)
+    if address is not None:
+        blocked(address)
+    return original_sendto(self, *args, **kwargs)
+
+
+def guarded_sendmsg(self, *args, **kwargs):
+    if self.family == socket.AF_UNIX:
+        return original_sendmsg(self, *args, **kwargs)
+    address = kwargs.get("address", args[3] if len(args) >= 4 else None)
+    if address is not None:
+        blocked(address)
+    return original_sendmsg(self, *args, **kwargs)
+
+
 def guarded_getaddrinfo(host, *args, **kwargs):
     if host is not None and not is_loopback(host):
         stack = "".join(traceback.format_stack()[:-1])
@@ -65,6 +85,8 @@ def enable_offline_guard():
     if not guard_enabled:
         socket.socket.connect = guarded_connect
         socket.socket.connect_ex = guarded_connect_ex
+        socket.socket.sendto = guarded_sendto
+        socket.socket.sendmsg = guarded_sendmsg
         socket.getaddrinfo = guarded_getaddrinfo
         guard_enabled = True
 
@@ -73,6 +95,8 @@ def disable_offline_guard():
     global guard_enabled
     socket.socket.connect = original_connect
     socket.socket.connect_ex = original_connect_ex
+    socket.socket.sendto = original_sendto
+    socket.socket.sendmsg = original_sendmsg
     socket.getaddrinfo = original_getaddrinfo
     guard_enabled = False
 
